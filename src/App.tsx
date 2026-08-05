@@ -322,46 +322,65 @@ export default function App() {
     // in future schedule regenerations and re-triggering the Habit ML update below.
     const resolvedIsCompleted = updatedEvent.isCompleted ?? (updatedEvent.status === 'done');
 
+    const updatedEventWithStatus: ScheduledEvent = {
+      ...updatedEvent,
+      isCompleted: resolvedIsCompleted,
+      status: resolvedIsCompleted ? 'done' : 'pending',
+    };
+
     if (draftEvents) {
       setDraftEvents((prevDraft) => {
         if (!prevDraft) return null;
-        return prevDraft.map((ev) =>
-          ev.id === updatedEvent.id
-            ? {
-                ...updatedEvent,
-                isCompleted: resolvedIsCompleted,
-                status: resolvedIsCompleted ? 'done' : 'pending',
-                isDraft: true,
-              }
-            : ev
-        );
+        const exists = prevDraft.some((ev) => ev.id === updatedEvent.id);
+        return exists
+          ? prevDraft.map((ev) =>
+              ev.id === updatedEvent.id
+                ? { ...updatedEventWithStatus, isDraft: true }
+                : ev
+            )
+          : [...prevDraft, { ...updatedEventWithStatus, isDraft: true }];
       });
     }
 
     updateUserDataWithHistory((prev) => {
-      const currentEvents = prev.scheduledEvents[currentDateStr] || scheduleResult.events;
-      const oldEvent = currentEvents.find((ev) => ev.id === updatedEvent.id);
+      const existingSavedEvents = prev.scheduledEvents[currentDateStr] || [];
+      const currentActiveEvents = scheduleResult.events || [];
+
+      // Determine base event list for today:
+      // Start with existing saved events, but if updatedEvent isn't in existingSavedEvents,
+      // merge with current active scheduleResult events so no generated events are lost.
+      let baseList: ScheduledEvent[];
+      if (existingSavedEvents.some((ev) => ev.id === updatedEvent.id)) {
+        baseList = existingSavedEvents;
+      } else {
+        const savedIds = new Set(existingSavedEvents.map((ev) => ev.id));
+        baseList = [
+          ...existingSavedEvents,
+          ...currentActiveEvents.filter((ev) => !savedIds.has(ev.id)),
+        ];
+      }
+
+      const oldEvent = baseList.find((ev) => ev.id === updatedEvent.id);
       const wasCompleted = !!oldEvent && (oldEvent.isCompleted ?? oldEvent.status === 'done');
       const isNewlyCompleted = resolvedIsCompleted && !wasCompleted;
 
-      const nextEvents = currentEvents.map((ev) =>
-        ev.id === updatedEvent.id
-          ? {
-              ...updatedEvent,
-              isCompleted: resolvedIsCompleted,
-              status: resolvedIsCompleted ? 'done' : 'pending',
-            }
-          : ev
-      );
+      const existsInBase = baseList.some((ev) => ev.id === updatedEvent.id);
+      const nextEvents = existsInBase
+        ? baseList.map((ev) => (ev.id === updatedEvent.id ? updatedEventWithStatus : ev))
+        : [...baseList, updatedEventWithStatus];
 
       let nextHabitModel = prev.habitModel;
 
       let nextOneTimeCommitments = prev.oneTimeCommitments;
-      if (updatedEvent.parentOneTimeId) {
-        const parentId = updatedEvent.parentOneTimeId;
+      if (updatedEvent.parentOneTimeId || updatedEvent.id.includes('otc-')) {
+        const parentId = updatedEvent.parentOneTimeId || '';
         const cleanId = parentId.replace(/^otc-/, '');
         nextOneTimeCommitments = (prev.oneTimeCommitments || []).map((o) => {
-          if (o.id === parentId || o.id.replace(/^otc-/, '') === cleanId) {
+          if (
+            (parentId && o.id === parentId) ||
+            (cleanId && o.id.replace(/^otc-/, '') === cleanId) ||
+            updatedEvent.id.includes(o.id)
+          ) {
             return { ...o, isCompleted: resolvedIsCompleted };
           }
           return o;
@@ -369,11 +388,15 @@ export default function App() {
       }
 
       let nextDynamicTasks = prev.dynamicTasks;
-      if (updatedEvent.parentTaskId) {
-        const parentId = updatedEvent.parentTaskId;
-        const cleanId = parentId.replace(/^task-/, '');
+      const targetTaskId = updatedEvent.parentTaskId;
+      if (targetTaskId || updatedEvent.id.includes('task-')) {
+        const cleanId = (targetTaskId || '').replace(/^task-/, '');
         nextDynamicTasks = prev.dynamicTasks.map((t) => {
-          if (t.id === parentId || t.id.replace(/^task-/, '') === cleanId) {
+          if (
+            (targetTaskId && t.id === targetTaskId) ||
+            (cleanId && t.id.replace(/^task-/, '') === cleanId) ||
+            updatedEvent.id.includes(t.id)
+          ) {
             return { ...t, isCompleted: resolvedIsCompleted };
           }
           return t;
