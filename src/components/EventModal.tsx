@@ -76,6 +76,7 @@ export const EventModal: React.FC<EventModalProps> = ({
     event?.endTime || minutesToTime(timeToMinutes(defaultStartTime) + 60)
   );
   const [isLocked, setIsLocked] = useState(event?.isLocked || false);
+  const [isPinned, setIsPinned] = useState(event?.isPinned ?? (event ? false : true));
   const [overrideSleep, setOverrideSleep] = useState(event?.overrideSleep || false);
   const [notes, setNotes] = useState(event?.notes || '');
   const [color, setColor] = useState(event?.color || '#6366f1');
@@ -102,7 +103,7 @@ export const EventModal: React.FC<EventModalProps> = ({
       isCompleted,
       status: isCompleted ? 'done' : 'pending',
       notes: notes.trim() || undefined,
-      isPinned: true,
+      isPinned,
     };
 
     onSave(updatedEvent);
@@ -418,6 +419,15 @@ export const EventModal: React.FC<EventModalProps> = ({
             </div>
 
             <div className="flex flex-col gap-2 pt-1">
+              <label className="flex items-center gap-2 cursor-pointer text-stone-700">
+                <input
+                  type="checkbox"
+                  checked={isPinned}
+                  onChange={(e) => setIsPinned(e.target.checked)}
+                  className="rounded border-stone-300 text-amber-600 focus:ring-amber-600"
+                />
+                <span className="text-xs font-semibold">Pin Event (Keep time fixed during recalculations)</span>
+              </label>
               <label className="flex items-center gap-2 cursor-pointer text-stone-700">
                 <input
                   type="checkbox"
