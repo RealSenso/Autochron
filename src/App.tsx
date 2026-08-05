@@ -413,65 +413,12 @@ export default function App() {
     });
   };
 
-  // Event deletion (with history undo support). Events derived from a
-  // recurring/config-driven source (anchor, one-time commitment, task,
-  // chore) get rebuilt fresh on every render, so simply removing this one
-  // rendered instance from scheduledEvents is a no-op — it reappears on the
-  // next regeneration. Deleting has to reach the actual source instead;
-  // only truly source-less events (custom, or plain array removal is
-  // meaningful) fall through to the generic path below.
+  // Delete an event instance from today's schedule view.
+  // Standard deletion removes the event from today's active schedule array,
+  // allowing it to be regenerated on future schedule generations or re-optimizations.
+  // For permanent exclusions/cancellations (e.g. "Cancel Today"), the dedicated
+  // buttons call handleDeleteAnchorInstance or handleExcludeGeneratedSlot.
   const handleEventDelete = (eventId: string) => {
-    const target = (draftEvents || scheduleResult.events).find((ev) => ev.id === eventId);
-
-    // 1. Anchor instances
-    const parentAnchorId = target?.parentAnchorId || (eventId.startsWith('anchor-') ? eventId.replace(/^anchor-/, '').replace(/-\d{4}-\d{2}-\d{2}(?:-p[12])?$/, '') : null);
-    if (parentAnchorId) {
-      handleDeleteAnchorInstance(parentAnchorId, currentDateStr);
-      return;
-    }
-
-    // 2. One-time commitments
-    const parentOneTimeId = target?.parentOneTimeId || (eventId.startsWith('otc-') ? eventId.replace(/^otc-/, '').replace(/-\d{4}-\d{2}-\d{2}(?:-p[12])?$/, '') : null);
-    if (parentOneTimeId) {
-      handleDeleteOneTimeCommitment(parentOneTimeId);
-      return;
-    }
-
-    // 3. Dynamic tasks and chores
-    const parentTaskId = target?.parentTaskId || (
-      eventId.match(/^(?:pinned-task|transit-before|transit-after|task|chore)-(.+?)-\d{4}-\d{2}-\d{2}$/)?.[1] || null
-    );
-    if (parentTaskId) {
-      handleDeleteDynamicTaskOrChore(parentTaskId);
-      return;
-    }
-
-    // 4. Auto-generated slots (meals, naps, sleep, decompression, pomodoro)
-    if (
-      (target && GENERATED_CATEGORIES.has(target.category)) ||
-      eventId.startsWith('meal-') ||
-      eventId.startsWith('nap-') ||
-      eventId.startsWith('pomo-') ||
-      eventId.startsWith('core-sleep') ||
-      eventId.startsWith('decompression')
-    ) {
-      const fallbackTarget: ScheduledEvent = target || {
-        id: eventId,
-        title: 'Event',
-        category: eventId.startsWith('meal-') ? 'meal' :
-                  eventId.startsWith('nap-') ? 'nap' :
-                  eventId.startsWith('pomo-') ? 'pomodoro_study' :
-                  eventId.startsWith('core-sleep') ? 'core_sleep' : 'decompression',
-        startTime: '00:00',
-        endTime: '00:00',
-        color: '#000000',
-        isLocked: false,
-        dateStr: currentDateStr,
-      };
-      handleExcludeGeneratedSlot(fallbackTarget);
-      return;
-    }
-
     if (draftEvents) {
       setDraftEvents((prevDraft) => {
         if (!prevDraft) return null;
@@ -779,7 +726,7 @@ export default function App() {
         <main className="flex-1 flex flex-col min-w-0 min-h-0 overflow-hidden">
           {activeTab === 'timeline' && (
             <TimelineView
-              events={draftEvents || scheduleResult.events}
+              events={draftEvents || userData.scheduledEvents[currentDateStr] || scheduleResult.events}
               unscheduledItems={scheduleResult.unscheduledItems}
               stats={scheduleResult.stats}
               currentDateStr={currentDateStr}
@@ -822,6 +769,7 @@ export default function App() {
           onDelete={handleEventDelete}
           onDeleteAnchorInstance={handleDeleteAnchorInstance}
           onDeleteAnchorSeries={handleDeleteAnchorSeries}
+          onExcludeGeneratedSlot={handleExcludeGeneratedSlot}
           onClose={() => {
             setEditingEvent(null);
             setCreatingSlotTime(null);

@@ -11,6 +11,7 @@ interface EventModalProps {
   onDelete?: (eventId: string) => void;
   onDeleteAnchorInstance?: (anchorId: string, dateStr: string) => void;
   onDeleteAnchorSeries?: (anchorId: string) => void;
+  onExcludeGeneratedSlot?: (event: ScheduledEvent) => void;
   onClose: () => void;
 }
 
@@ -63,6 +64,7 @@ export const EventModal: React.FC<EventModalProps> = ({
   onDelete,
   onDeleteAnchorInstance,
   onDeleteAnchorSeries,
+  onExcludeGeneratedSlot,
   onClose,
 }) => {
   const [isEditMode, setIsEditMode] = useState(!event);
@@ -266,44 +268,66 @@ export const EventModal: React.FC<EventModalProps> = ({
 
             {/* FOOTER ACTIONS */}
             <div className="flex items-center justify-between gap-2 pt-3 border-t border-stone-100 flex-wrap">
-              {(event.parentAnchorId || event.id.startsWith('anchor-')) && onDeleteAnchorInstance && onDeleteAnchorSeries ? (
-                <div className="flex items-center gap-1.5">
-                  <button
-                    type="button"
-                    onClick={() => {
-                      const anchorId = event.parentAnchorId || event.id.replace(/^anchor-/, '').replace(new RegExp(`-${dateStr}(?:-p[12])?$`), '');
-                      onDeleteAnchorInstance(anchorId, dateStr);
-                      onClose();
-                    }}
-                    className="px-2 py-1.5 bg-amber-50 hover:bg-amber-100 text-amber-800 rounded border border-amber-300 text-[10px] font-bold transition-colors"
-                  >
-                    Cancel Today
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      const anchorId = event.parentAnchorId || event.id.replace(/^anchor-/, '').replace(new RegExp(`-${dateStr}(?:-p[12])?$`), '');
-                      onDeleteAnchorSeries(anchorId);
-                      onClose();
-                    }}
-                    className="px-2 py-1.5 bg-red-50 hover:bg-red-100 text-red-600 rounded border border-red-200 text-[10px] font-bold transition-colors"
-                  >
-                    Delete Series
-                  </button>
+              {event && (
+                <div className="flex items-center gap-1.5 flex-wrap">
+                  {(event.parentAnchorId || event.id.startsWith('anchor-') || event.category === 'lecture') && onDeleteAnchorInstance && onDeleteAnchorSeries && (
+                    <>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const anchorId = event.parentAnchorId || event.id.replace(/^anchor-/, '').replace(new RegExp(`-${dateStr}(?:-p[12])?$`), '');
+                          onDeleteAnchorInstance(anchorId, dateStr);
+                          onClose();
+                        }}
+                        className="px-2 py-1.5 bg-amber-50 hover:bg-amber-100 text-amber-800 rounded border border-amber-300 text-[10px] font-bold transition-colors"
+                        title="Cancel this routine anchor for today only (won't regenerate today)"
+                      >
+                        Cancel Today
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const anchorId = event.parentAnchorId || event.id.replace(/^anchor-/, '').replace(new RegExp(`-${dateStr}(?:-p[12])?$`), '');
+                          onDeleteAnchorSeries(anchorId);
+                          onClose();
+                        }}
+                        className="px-2 py-1.5 bg-red-50 hover:bg-red-100 text-red-600 rounded border border-red-200 text-[10px] font-bold transition-colors"
+                        title="Delete this entire recurring routine series"
+                      >
+                        Delete Series
+                      </button>
+                    </>
+                  )}
+
+                  {['meal', 'nap', 'pomodoro_study', 'pomodoro_break', 'core_sleep', 'decompression'].includes(event.category) && onExcludeGeneratedSlot && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        onExcludeGeneratedSlot(event);
+                        onClose();
+                      }}
+                      className="px-2 py-1.5 bg-amber-50 hover:bg-amber-100 text-amber-800 rounded border border-amber-300 text-[10px] font-bold transition-colors"
+                      title="Exclude this slot for today only (won't regenerate today)"
+                    >
+                      Cancel Today
+                    </button>
+                  )}
+
+                  {onDelete && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        onDelete(event.id);
+                        onClose();
+                      }}
+                      className="p-2 bg-red-50 hover:bg-red-100 text-red-600 rounded-md border border-red-200 transition-colors"
+                      title="Remove from today's schedule view"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </button>
+                  )}
                 </div>
-              ) : onDelete ? (
-                <button
-                  type="button"
-                  onClick={() => {
-                    onDelete(event.id);
-                    onClose();
-                  }}
-                  className="p-2 bg-red-50 hover:bg-red-100 text-red-600 rounded-md border border-red-200 transition-colors"
-                  title="Delete Event"
-                >
-                  <Trash2 className="w-4 h-4" />
-                </button>
-              ) : null}
+              )}
 
               <div className="flex items-center gap-2 ml-auto">
                 <button
@@ -425,44 +449,64 @@ export const EventModal: React.FC<EventModalProps> = ({
 
             <div className="flex items-center justify-between gap-2 pt-3 border-t border-stone-100 flex-wrap">
               {event && (
-                (event.parentAnchorId || event.id.startsWith('anchor-')) && onDeleteAnchorInstance && onDeleteAnchorSeries ? (
-                  <div className="flex items-center gap-1.5">
+                <div className="flex items-center gap-1.5 flex-wrap">
+                  {(event.parentAnchorId || event.id.startsWith('anchor-') || event.category === 'lecture') && onDeleteAnchorInstance && onDeleteAnchorSeries && (
+                    <>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const anchorId = event.parentAnchorId || event.id.replace(/^anchor-/, '').replace(new RegExp(`-${dateStr}(?:-p[12])?$`), '');
+                          onDeleteAnchorInstance(anchorId, dateStr);
+                          onClose();
+                        }}
+                        className="px-2 py-1.5 bg-amber-50 hover:bg-amber-100 text-amber-800 rounded border border-amber-300 text-[10px] font-bold transition-colors"
+                        title="Cancel this routine anchor for today only (won't regenerate today)"
+                      >
+                        Cancel Today
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const anchorId = event.parentAnchorId || event.id.replace(/^anchor-/, '').replace(new RegExp(`-${dateStr}(?:-p[12])?$`), '');
+                          onDeleteAnchorSeries(anchorId);
+                          onClose();
+                        }}
+                        className="px-2 py-1.5 bg-red-50 hover:bg-red-100 text-red-600 rounded border border-red-200 text-[10px] font-bold transition-colors"
+                        title="Delete this entire recurring routine series"
+                      >
+                        Delete Series
+                      </button>
+                    </>
+                  )}
+
+                  {['meal', 'nap', 'pomodoro_study', 'pomodoro_break', 'core_sleep', 'decompression'].includes(event.category) && onExcludeGeneratedSlot && (
                     <button
                       type="button"
                       onClick={() => {
-                        const anchorId = event.parentAnchorId || event.id.replace(/^anchor-/, '').replace(new RegExp(`-${dateStr}(?:-p[12])?$`), '');
-                        onDeleteAnchorInstance(anchorId, dateStr);
+                        onExcludeGeneratedSlot(event);
                         onClose();
                       }}
                       className="px-2 py-1.5 bg-amber-50 hover:bg-amber-100 text-amber-800 rounded border border-amber-300 text-[10px] font-bold transition-colors"
+                      title="Exclude this slot for today only (won't regenerate today)"
                     >
                       Cancel Today
                     </button>
+                  )}
+
+                  {onDelete && (
                     <button
                       type="button"
                       onClick={() => {
-                        const anchorId = event.parentAnchorId || event.id.replace(/^anchor-/, '').replace(new RegExp(`-${dateStr}(?:-p[12])?$`), '');
-                        onDeleteAnchorSeries(anchorId);
+                        onDelete(event.id);
                         onClose();
                       }}
-                      className="px-2 py-1.5 bg-red-50 hover:bg-red-100 text-red-600 rounded border border-red-200 text-[10px] font-bold transition-colors"
+                      className="p-2 bg-red-50 hover:bg-red-100 text-red-600 rounded-md border border-red-200 transition-colors"
+                      title="Remove from today's schedule view"
                     >
-                      Delete Series
+                      <Trash2 className="w-4 h-4" />
                     </button>
-                  </div>
-                ) : onDelete ? (
-                  <button
-                    type="button"
-                    onClick={() => {
-                      onDelete(event.id);
-                      onClose();
-                    }}
-                    className="p-2 bg-red-50 hover:bg-red-100 text-red-600 rounded-md border border-red-200 transition-colors"
-                    title="Delete Event"
-                  >
-                    <Trash2 className="w-4 h-4" />
-                  </button>
-                ) : null
+                  )}
+                </div>
               )}
 
               <div className="flex items-center gap-2 ml-auto">
