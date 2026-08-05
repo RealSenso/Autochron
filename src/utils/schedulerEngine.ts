@@ -914,29 +914,21 @@ export function generateOptimizedSchedule(
       let cursor = interval.start;
       let remainingInterval = interval.end - cursor;
 
-      while (remainingInterval >= 25) {
-        let studyMins = 60;
-        if (remainingInterval < 60) {
-          studyMins = remainingInterval;
-        }
+      // A valid Pomodoro cycle requires at least 35 minutes total (e.g. min 25m study + 10m mandatory break).
+      // Smaller remaining slots (like a 30m gap between a Nap and a Meal) are reserved as buffer/rest time.
+      while (remainingInterval >= 35) {
+        let studyMins = 50;
+        let breakMins = 15;
 
-        const spaceAfterStudy = remainingInterval - studyMins;
-        let breakMins = 0;
-
-        if (spaceAfterStudy >= 15) {
-          breakMins = Math.min(20, spaceAfterStudy);
-          if (spaceAfterStudy - breakMins > 0 && spaceAfterStudy - breakMins < 25) {
-            if (remainingInterval >= 115) {
-              studyMins = 50;
-              breakMins = 15;
-            } else {
-              studyMins = Math.max(25, remainingInterval - 15);
-              breakMins = 15;
-            }
-          }
-        } else if (spaceAfterStudy > 0 && remainingInterval >= 40) {
-          studyMins = remainingInterval - 15;
+        if (remainingInterval >= 65) {
+          studyMins = 50;
           breakMins = 15;
+        } else if (remainingInterval >= 50) {
+          breakMins = 15;
+          studyMins = remainingInterval - breakMins;
+        } else {
+          breakMins = 10;
+          studyMins = remainingInterval - breakMins;
         }
 
         const workEnd = cursor + studyMins;
@@ -976,7 +968,7 @@ export function generateOptimizedSchedule(
         }
 
         let actualBreak = 0;
-        if (breakMins >= 15 && !isWorkExcluded) {
+        if (breakMins >= 5 && !isWorkExcluded) {
           const breakEnd = workEnd + breakMins;
           const isBreakExcluded =
             excludedKeys.has(`pomo:${workEnd}-${breakEnd}`) ||
@@ -1008,9 +1000,9 @@ export function generateOptimizedSchedule(
         }
 
         if (isWorkExcluded) {
-          cursor = workEnd + (breakMins > 0 ? breakMins : 0);
+          cursor = workEnd + breakMins;
         } else if (actualBreak === 0) {
-          cursor = workEnd + 15;
+          cursor = workEnd + (breakMins > 0 ? breakMins : 15);
         } else {
           cursor = workEnd + actualBreak;
         }
