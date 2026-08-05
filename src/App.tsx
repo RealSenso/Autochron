@@ -752,10 +752,11 @@ export default function App() {
 
           {activeTab === 'focus' && (
             <FocusTimerModal
-              events={scheduleResult.events}
+              events={draftEvents || scheduleResult.events}
               onClose={() => setActiveTab('timeline')}
               onEventComplete={(eventId) => {
-                const target = scheduleResult.events.find((e) => e.id === eventId);
+                const activeEvents = draftEvents || scheduleResult.events;
+                const target = activeEvents.find((e) => e.id === eventId);
                 if (target) {
                   handleEventUpdate({ ...target, isCompleted: true });
                 }
