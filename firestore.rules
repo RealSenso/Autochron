@@ -1,0 +1,12 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    match /users/{userId} {
+      allow read, write: if request.auth != null && request.auth.uid == userId;
+    }
+    match /sync_schedules/{syncCode} {
+      // Permit read & write when identified by a unique sync code of valid length
+      allow read, write: if syncCode.size() >= 6;
+    }
+  }
+}

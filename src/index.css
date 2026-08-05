@@ -1,0 +1,59 @@
+@import "tailwindcss";
+
+@theme {
+  --font-sans: "Inter", ui-sans-serif, system-ui, -apple-system, sans-serif;
+  --font-display: "Space Grotesk", ui-sans-serif, system-ui, sans-serif;
+
+  /* Vela — a signature indigo-violet, cooler than stock violet, warmer than stock indigo. */
+  --color-vela-50: #f3f1fe;
+  --color-vela-100: #e7e3fd;
+  --color-vela-200: #d1c9fb;
+  --color-vela-300: #b3a3f7;
+  --color-vela-400: #8f74f0;
+  --color-vela-500: #6e4ce8;
+  --color-vela-600: #5934d9;
+  --color-vela-700: #4827b5;
+  --color-vela-800: #3b2192;
+  --color-vela-900: #331e77;
+  --color-vela-950: #1f1150;
+
+  --animate-fade-in: fade-in 0.18s ease-out;
+  --animate-slide-up: slide-up 0.22s cubic-bezier(0.16, 1, 0.3, 1);
+  --animate-scale-in: scale-in 0.16s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@keyframes fade-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes slide-up {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes scale-in {
+  from { opacity: 0; transform: scale(0.97); }
+  to { opacity: 1; transform: scale(1); }
+}
+
+html {
+  font-family: var(--font-sans);
+}
+
+/* Slim, quiet scrollbars — the default chrome felt out of place next to the rest of the surface. */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: var(--color-stone-300) transparent;
+}
+*::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+*::-webkit-scrollbar-thumb {
+  background-color: var(--color-stone-300);
+  border-radius: 999px;
+}
+*::-webkit-scrollbar-track {
+  background: transparent;
+}

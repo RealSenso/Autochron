@@ -1,0 +1,66 @@
+{
+  "entities": {
+    "UserSchedule": {
+      "title": "UserSchedule",
+      "description": "User schedule preferences, tasks, chores, and events",
+      "type": "object",
+      "properties": {
+        "fixedAnchors": {
+          "type": "array",
+          "description": "Fixed recurring commitments like lectures or meetings"
+        },
+        "oneTimeCommitments": {
+          "type": "array",
+          "description": "One-time events and tasks on specific dates"
+        },
+        "mealConfig": {
+          "type": "object",
+          "description": "Meal windows and durations"
+        },
+        "sleepConfig": {
+          "type": "object",
+          "description": "Everyman polyphasic sleep configurations"
+        },
+        "dynamicTasks": {
+          "type": "array",
+          "description": "Unscheduled list of tasks to fit in automatically"
+        },
+        "weeklyChores": {
+          "type": "array",
+          "description": "Weekly chores assigned and tracked"
+        },
+        "decompressionMinutes": {
+          "type": "number",
+          "description": "Decompression buffer duration"
+        },
+        "pomodoroConfig": {
+          "type": "object",
+          "description": "Pomodoro study and break intervals"
+        },
+        "scheduledEvents": {
+          "type": "object",
+          "description": "Events scheduled by day"
+        },
+        "habitModel": {
+          "type": "object",
+          "description": "Friction multipliers dynamically trained with Habit ML"
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Last update timestamp for multi-device sync resolution"
+        }
+      }
+    }
+  },
+  "firestore": {
+    "users/{userId}": {
+      "schema": "UserSchedule",
+      "description": "Primary user document storing their schedule settings and state"
+    },
+    "sync_schedules/{syncCode}": {
+      "schema": "UserSchedule",
+      "description": "Synchronized schedule document identified by a unique multi-device Sync Code"
+    }
+  }
+}
