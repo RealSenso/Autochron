@@ -227,7 +227,17 @@ export default function App() {
   const handleGenerateSchedule = () => {
     setIsGenerating(true);
     setTimeout(() => {
-      const fresh = generateOptimizedSchedule(userData, currentDateStr, targetDayOfWeek);
+      const updatedData: UserScheduleData = {
+        ...userData,
+        excludedSlots: {
+          ...userData.excludedSlots,
+          [currentDateStr]: (userData.excludedSlots?.[currentDateStr] || []).filter(
+            (k) => !k.startsWith('pomo')
+          ),
+        },
+      };
+      setUserData(updatedData);
+      const fresh = generateOptimizedSchedule(updatedData, currentDateStr, targetDayOfWeek);
       const draftWithFlag = fresh.events.map((ev) => ({ ...ev, isDraft: true }));
       setDraftEvents(draftWithFlag);
       setIsDraftMode(true);
@@ -536,10 +546,6 @@ export default function App() {
       }
       case 'pomodoro_study':
       case 'pomodoro_break': {
-        const match = event.id.match(/^pomo-(work|break)-(\d+)-/);
-        if (match) {
-          return `pomo-${match[1]}-${match[2]}`;
-        }
         return `pomo:${event.startMinutes}-${event.endMinutes}`;
       }
       default:
@@ -726,7 +732,7 @@ export default function App() {
         <main className="flex-1 flex flex-col min-w-0 min-h-0 overflow-hidden">
           {activeTab === 'timeline' && (
             <TimelineView
-              events={draftEvents || userData.scheduledEvents[currentDateStr] || scheduleResult.events}
+              events={draftEvents || scheduleResult.events}
               unscheduledItems={scheduleResult.unscheduledItems}
               stats={scheduleResult.stats}
               currentDateStr={currentDateStr}

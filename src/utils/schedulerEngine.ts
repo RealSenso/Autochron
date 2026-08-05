@@ -914,7 +914,7 @@ export function generateOptimizedSchedule(
       let cursor = interval.start;
       let remainingInterval = interval.end - cursor;
 
-      while (remainingInterval >= 50) {
+      while (remainingInterval >= 25) {
         let studyMins = 60;
         if (remainingInterval < 60) {
           studyMins = remainingInterval;
@@ -925,16 +925,16 @@ export function generateOptimizedSchedule(
 
         if (spaceAfterStudy >= 15) {
           breakMins = Math.min(20, spaceAfterStudy);
-          if (spaceAfterStudy - breakMins > 0 && spaceAfterStudy - breakMins < 50) {
+          if (spaceAfterStudy - breakMins > 0 && spaceAfterStudy - breakMins < 25) {
             if (remainingInterval >= 115) {
               studyMins = 50;
               breakMins = 15;
             } else {
-              studyMins = Math.min(60, remainingInterval - 15);
+              studyMins = Math.max(25, remainingInterval - 15);
               breakMins = 15;
             }
           }
-        } else if (spaceAfterStudy > 0 && remainingInterval >= 65) {
+        } else if (spaceAfterStudy > 0 && remainingInterval >= 40) {
           studyMins = remainingInterval - 15;
           breakMins = 15;
         }
@@ -976,7 +976,7 @@ export function generateOptimizedSchedule(
         }
 
         let actualBreak = 0;
-        if (breakMins >= 15) {
+        if (breakMins >= 15 && !isWorkExcluded) {
           const breakEnd = workEnd + breakMins;
           const isBreakExcluded =
             excludedKeys.has(`pomo:${workEnd}-${breakEnd}`) ||
@@ -1007,7 +1007,9 @@ export function generateOptimizedSchedule(
           }
         }
 
-        if (actualBreak === 0) {
+        if (isWorkExcluded) {
+          cursor = workEnd + (breakMins > 0 ? breakMins : 0);
+        } else if (actualBreak === 0) {
           cursor = workEnd + 15;
         } else {
           cursor = workEnd + actualBreak;
