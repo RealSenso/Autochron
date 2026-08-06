@@ -573,7 +573,7 @@ export function generateOptimizedSchedule(
     const windowEndMins = timeToMinutes(meal.windowEnd);
     const dur = meal.durationMinutes || 60;
 
-    const scanStart = isToday ? Math.max(windowStartMins, currentMins) : windowStartMins;
+    const scanStart = windowStartMins;
 
     let scheduled = false;
     for (let t = scanStart; t <= windowEndMins - dur; t += 15) {
@@ -593,7 +593,7 @@ export function generateOptimizedSchedule(
       }
     }
 
-    if (!scheduled && windowEndMins > currentMins) {
+    if (!scheduled) {
       unscheduledItems.push({
         type: 'meal',
         title: meal.name,
@@ -633,12 +633,11 @@ export function generateOptimizedSchedule(
       const preferredTimeStr = preferredTimes[i];
       const targetMins = timeToMinutes(preferredTimeStr);
 
-      if (isToday && targetMins + napDur <= currentMins) continue;
       if (isOverriddenByLongTravel(targetMins, targetMins + napDur)) continue;
 
       let placed = false;
 
-      if (targetMins >= currentMins && isSlotFree(targetMins, targetMins + napDur)) {
+      if (isSlotFree(targetMins, targetMins + napDur)) {
         addEventToTimeline({
           id: `nap-${i + 1}-${dateStr}`,
           title: `Everyman Nap #${i + 1} (${napDur}m REM Refresh)`,
@@ -653,7 +652,7 @@ export function generateOptimizedSchedule(
       } else {
         for (let offset = 15; offset <= 300; offset += 15) {
           const tryStart1 = targetMins + offset;
-          if (tryStart1 >= currentMins && tryStart1 + napDur <= 1440 && isSlotFree(tryStart1, tryStart1 + napDur)) {
+          if (tryStart1 >= 0 && tryStart1 + napDur <= 1440 && isSlotFree(tryStart1, tryStart1 + napDur)) {
             addEventToTimeline({
               id: `nap-${i + 1}-${dateStr}`,
               title: `Everyman Nap #${i + 1} (${napDur}m REM Refresh)`,
@@ -669,7 +668,7 @@ export function generateOptimizedSchedule(
           }
 
           const tryStart2 = targetMins - offset;
-          if (tryStart2 >= currentMins && isSlotFree(tryStart2, tryStart2 + napDur)) {
+          if (tryStart2 >= 0 && tryStart2 + napDur <= 1440 && isSlotFree(tryStart2, tryStart2 + napDur)) {
             addEventToTimeline({
               id: `nap-${i + 1}-${dateStr}`,
               title: `Everyman Nap #${i + 1} (${napDur}m REM Refresh)`,
@@ -686,7 +685,7 @@ export function generateOptimizedSchedule(
         }
       }
 
-      if (!placed && (!isToday || targetMins > currentMins)) {
+      if (!placed) {
         unscheduledItems.push({
           type: 'nap',
           title: `Everyman Nap #${i + 1}`,
@@ -746,11 +745,11 @@ export function generateOptimizedSchedule(
     const errandMin = 600;  // 10:00 AM
     const errandMax = 1200; // 08:00 PM
 
-    let searchMinMins = currentMins;
+    let searchMinMins = 0;
     let searchMaxMins = 1440;
 
     if (isErrand) {
-      searchMinMins = Math.max(errandMin, currentMins);
+      searchMinMins = errandMin;
       searchMaxMins = errandMax;
     }
 
@@ -857,7 +856,7 @@ export function generateOptimizedSchedule(
 
     if (!scheduled) {
       let reasonMsg: string;
-      if (deadlineMins !== null && deadlineMins <= currentMins) {
+      if (deadlineMins !== null && deadlineMins <= 0) {
         reasonMsg = `Deadline (${task.deadline}) has already passed.`;
       } else if (deadlineMins !== null) {
         reasonMsg = `Requires a ${totalRequired}m contiguous block before its ${task.deadline} deadline, but none was found.`;
@@ -908,7 +907,7 @@ export function generateOptimizedSchedule(
   // -------------------------------------------------------------
   if (data.pomodoroConfig.autoFillRemainingSlots) {
     let pomodoroIndex = 1;
-    const freeIntervals = getSortedFreeIntervals(currentMins);
+    const freeIntervals = getSortedFreeIntervals(0);
 
     for (const interval of freeIntervals) {
       let cursor = interval.start;

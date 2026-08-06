@@ -200,17 +200,65 @@ export default function App() {
     }
   }, [currentDateStr]);
 
-  // Compute schedule result for current date. generateOptimizedSchedule already
-  // re-derives done/pinned/custom events from userData.scheduledEvents[currentDateStr]
-  // internally (Steps 0A-0/0A-1) and regenerates everything else fresh from current
-  // config, so it must be called on every render — previously this short-circuited to
-  // the raw committed event list once anything was saved for the day, which froze the
-  // visible timeline (while the stats card below kept recomputing from fresh data,
-  // making the two visibly disagree) until the user explicitly re-generated.
-  const scheduleResult = useMemo(
-    () => generateOptimizedSchedule(userData, currentDateStr, targetDayOfWeek),
-    [userData, currentDateStr, targetDayOfWeek]
-  );
+  // Compute schedule result for current date.
+  // If user has saved/committed events for currentDateStr, use them directly (updating isPast and stats).
+  // Otherwise, fallback to generating an optimized schedule fresh.
+  const scheduleResult = useMemo(() => {
+    const savedEvents = userData.scheduledEvents[currentDateStr];
+    if (savedEvents !== undefined) {
+      const todayStr = getTodayStr();
+      const isToday = currentDateStr === todayStr;
+      const now = new Date();
+      const currentMins = isToday ? now.getHours() * 60 + now.getMinutes() : 0;
+
+      const events: ScheduledEvent[] = savedEvents.map((ev) => ({
+        ...ev,
+        dateStr: currentDateStr,
+        isPast: isToday && ev.endMinutes <= currentMins,
+      }));
+
+      let totalSleepMinutes = 0;
+      let totalStudyMinutes = 0;
+      let totalLectureMinutes = 0;
+      let totalMealMinutes = 0;
+      let totalTaskMinutes = 0;
+
+      for (const ev of events) {
+        const dur = Math.max(0, ev.endMinutes - ev.startMinutes);
+        if (ev.category === 'core_sleep' || ev.category === 'nap') {
+          totalSleepMinutes += dur;
+        } else if (ev.category === 'pomodoro_study') {
+          totalStudyMinutes += dur;
+        } else if (ev.category === 'lecture') {
+          totalLectureMinutes += dur;
+        } else if (ev.category === 'meal') {
+          totalMealMinutes += dur;
+        } else if (ev.category === 'task' || ev.category === 'transit' || ev.category === 'chore') {
+          totalTaskMinutes += dur;
+        }
+      }
+
+      const allocatedMinutes = events.reduce((acc, ev) => acc + Math.max(0, ev.endMinutes - ev.startMinutes), 0);
+      const freeMinutes = Math.max(0, 1440 - allocatedMinutes);
+      const utilizationPercent = Math.round((allocatedMinutes / 1440) * 100);
+
+      return {
+        events,
+        unscheduledItems: [],
+        stats: {
+          totalSleepMinutes,
+          totalStudyMinutes,
+          totalLectureMinutes,
+          totalMealMinutes,
+          totalTaskMinutes,
+          freeMinutes,
+          utilizationPercent,
+        },
+      };
+    }
+
+    return generateOptimizedSchedule(userData, currentDateStr, targetDayOfWeek);
+  }, [userData, currentDateStr, targetDayOfWeek]);
 
   // When in draft mode, update or generate draft events for whatever date is selected
   useEffect(() => {
@@ -447,16 +495,49 @@ export default function App() {
   };
 
   // Delete an event instance from today's schedule view.
-  // Standard deletion removes the event from today's active schedule array,
-  // allowing it to be regenerated on future schedule generations or re-optimizations.
-  // For permanent exclusions/cancellations (e.g. "Cancel Today"), the dedicated
-  // buttons call handleDeleteAnchorInstance or handleExcludeGeneratedSlot.
+  // Delete an event instance from today's schedule view.
+  // Routes to specific handlers (anchor exceptions, task/chore deletions,
+  // one-time commitment removal, or auto-generated slot exclusions) as appropriate.
   const handleEventDelete = (eventId: string) => {
     if (draftEvents) {
       setDraftEvents((prevDraft) => {
         if (!prevDraft) return null;
         return prevDraft.filter((ev) => ev.id !== eventId);
       });
+    }
+
+    const currentSaved = userData.scheduledEvents[currentDateStr] || [];
+    const allEvents = [...currentSaved, ...scheduleResult.events];
+    const targetEvent = allEvents.find((ev) => ev.id === eventId);
+
+    if (targetEvent) {
+      if (targetEvent.parentAnchorId || targetEvent.id.startsWith('anchor-')) {
+        const anchorId = targetEvent.parentAnchorId || targetEvent.id;
+        handleDeleteAnchorInstance(anchorId, targetEvent.dateStr || currentDateStr);
+        return;
+      }
+
+      if (targetEvent.parentOneTimeId || targetEvent.id.startsWith('otc-')) {
+        const otcId = targetEvent.parentOneTimeId || targetEvent.id;
+        handleDeleteOneTimeCommitment(otcId);
+        return;
+      }
+
+      if (
+        targetEvent.parentTaskId ||
+        targetEvent.id.startsWith('task-') ||
+        targetEvent.id.startsWith('chore-')
+      ) {
+        const taskId = targetEvent.parentTaskId || targetEvent.id;
+        handleDeleteDynamicTaskOrChore(taskId);
+        return;
+      }
+
+      const exclusionKey = buildExclusionKey(targetEvent);
+      if (exclusionKey || targetEvent.id.startsWith('pomo-')) {
+        handleExcludeGeneratedSlot(targetEvent);
+        return;
+      }
     }
 
     updateUserDataWithHistory((prev) => {
@@ -561,7 +642,13 @@ export default function App() {
         return 'core_sleep';
       case 'meal': {
         const match = event.id.match(/^meal-(breakfast|lunch|snacks|dinner)-/);
-        return match ? `meal-${match[1]}` : null;
+        if (match) return `meal-${match[1]}`;
+        const titleLower = event.title.toLowerCase();
+        if (titleLower.includes('breakfast')) return 'meal-breakfast';
+        if (titleLower.includes('lunch')) return 'meal-lunch';
+        if (titleLower.includes('snack')) return 'meal-snacks';
+        if (titleLower.includes('dinner')) return 'meal-dinner';
+        return null;
       }
       case 'nap': {
         const match = event.id.match(/^nap-(\d+)-/);
@@ -584,16 +671,25 @@ export default function App() {
   // itself already refuses to leave stale — see isOrphanedEvent).
   const handleExcludeGeneratedSlot = (event: ScheduledEvent) => {
     const key = buildExclusionKey(event);
-    if (!key) return;
+    const dateStr = event.dateStr || currentDateStr;
     updateUserDataWithHistory((prev) => {
-      const dateStr = event.dateStr;
       const existing = (prev.excludedSlots && prev.excludedSlots[dateStr]) || [];
-      if (existing.includes(key)) return prev;
-      const excludedSlots = { ...(prev.excludedSlots || {}), [dateStr]: [...existing, key] };
-      const dayEvents = prev.scheduledEvents[dateStr];
-      const scheduledEvents = dayEvents
-        ? { ...prev.scheduledEvents, [dateStr]: dayEvents.filter((ev) => ev.id !== event.id) }
-        : prev.scheduledEvents;
+      const keysToAdd: string[] = [];
+      if (key && !existing.includes(key)) {
+        keysToAdd.push(key);
+      }
+      const pomoMatch = event.id.match(/^(pomo-(?:work|break)-\d+)/);
+      if (pomoMatch && !existing.includes(pomoMatch[1]) && !keysToAdd.includes(pomoMatch[1])) {
+        keysToAdd.push(pomoMatch[1]);
+      }
+
+      const newExcludedKeys = [...existing, ...keysToAdd];
+      const excludedSlots = { ...(prev.excludedSlots || {}), [dateStr]: newExcludedKeys };
+      const dayEvents = prev.scheduledEvents[dateStr] || scheduleResult.events;
+      const scheduledEvents = {
+        ...prev.scheduledEvents,
+        [dateStr]: dayEvents.filter((ev) => ev.id !== event.id),
+      };
       return { ...prev, excludedSlots, scheduledEvents };
     }, 'Removed from today\'s schedule');
     setDraftEvents(null);
@@ -603,10 +699,11 @@ export default function App() {
   // meals/naps/pomodoro/sleep/decompression fill back in normally.
   const handleClearExclusions = () => {
     updateUserDataWithHistory((prev) => {
-      if (!prev.excludedSlots || !prev.excludedSlots[currentDateStr]?.length) return prev;
-      const excludedSlots = { ...prev.excludedSlots };
+      const excludedSlots = { ...(prev.excludedSlots || {}) };
       delete excludedSlots[currentDateStr];
-      return { ...prev, excludedSlots };
+      const scheduledEvents = { ...(prev.scheduledEvents || {}) };
+      delete scheduledEvents[currentDateStr];
+      return { ...prev, excludedSlots, scheduledEvents };
     }, 'Restored auto-fill for today');
     setDraftEvents(null);
   };
