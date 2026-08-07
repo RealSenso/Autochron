@@ -4,7 +4,6 @@
   --font-sans: "Inter", ui-sans-serif, system-ui, -apple-system, sans-serif;
   --font-display: "Space Grotesk", ui-sans-serif, system-ui, sans-serif;
 
-  /* Vela — a signature indigo-violet, cooler than stock violet, warmer than stock indigo. */
   --color-vela-50: #f3f1fe;
   --color-vela-100: #e7e3fd;
   --color-vela-200: #d1c9fb;
@@ -41,7 +40,6 @@ html {
   font-family: var(--font-sans);
 }
 
-/* Slim, quiet scrollbars — the default chrome felt out of place next to the rest of the surface. */
 * {
   scrollbar-width: thin;
   scrollbar-color: var(--color-stone-300) transparent;

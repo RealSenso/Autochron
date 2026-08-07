@@ -43,7 +43,7 @@ export const SyncModal: React.FC<SyncModalProps> = ({
   if (!isOpen) return null;
 
   const generateNewSyncCode = () => {
-    const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'; // Readable letters & numbers
+    const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
     let code1 = '';
     let code2 = '';
     for (let i = 0; i < 4; i++) {
@@ -77,33 +77,26 @@ export const SyncModal: React.FC<SyncModalProps> = ({
     setError(null);
     setSuccess(null);
 
-    // Normalize input: make uppercase, strip leading/trailing spaces, replace multiple spaces
     let rawInput = inputCode.trim().toUpperCase().replace(/\s+/g, '');
 
     let formattedCode = rawInput;
 
-    // Help with different user formats for maximum resilience on mobile devices:
     if (rawInput.startsWith('CHRONO-')) {
-      // It's already mostly structured, just ensure it has correct dashes
       const content = rawInput.substring(7).replace(/-/g, '');
       if (content.length === 8) {
         formattedCode = `CHRONO-${content.slice(0, 4)}-${content.slice(4)}`;
       }
     } else {
-      // User omitted the "CHRONO-" prefix
       const stripped = rawInput.replace(/-/g, '');
       if (stripped.length === 8) {
-        // e.g. "ABCD-EFGH" or "ABCDEFGH"
         formattedCode = `CHRONO-${stripped.slice(0, 4)}-${stripped.slice(4)}`;
       } else if (rawInput.startsWith('CHRONO') && rawInput.length === 14) {
-        // e.g. "CHRONOABCDEFGH"
         const content = rawInput.substring(6);
         formattedCode = `CHRONO-${content.slice(0, 4)}-${content.slice(4)}`;
       }
     }
 
     try {
-      // Fetch cloud schedule for this code
       const cloudData = await fetchScheduleBySyncCode(formattedCode);
       if (cloudData) {
         onCloudDataFetched(cloudData);
@@ -136,7 +129,6 @@ export const SyncModal: React.FC<SyncModalProps> = ({
   return (
     <div className="fixed inset-0 bg-stone-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 animate-fade-in">
       <div className="bg-white rounded-xl shadow-xl w-full max-w-md overflow-hidden border border-stone-100 flex flex-col animate-scale-in">
-        {/* Modal Header */}
         <div className="px-6 py-4 border-b border-stone-100 flex items-center justify-between bg-stone-50">
           <div className="flex items-center gap-2">
             <Cloud className="w-5 h-5 text-vela-600" />
@@ -150,9 +142,7 @@ export const SyncModal: React.FC<SyncModalProps> = ({
           </button>
         </div>
 
-        {/* Modal Body */}
         <div className="p-6 overflow-y-auto max-h-[80vh] space-y-5">
-          {/* Explanation Banner */}
           <div className="p-3.5 bg-stone-50 border border-stone-100 rounded-lg text-xs text-stone-600 space-y-1.5">
             <div className="font-semibold text-stone-700 flex items-center gap-1.5">
               <ArrowRightLeft className="w-3.5 h-3.5 text-vela-500" />
@@ -178,7 +168,6 @@ export const SyncModal: React.FC<SyncModalProps> = ({
           )}
 
           {syncCode ? (
-            /* Active Sync View */
             <div className="space-y-5">
               <div className="bg-vela-50/50 border border-vela-100/60 rounded-xl p-4 text-center space-y-3">
                 <div className="text-xs font-bold uppercase tracking-wider text-vela-600">Active Sync Code</div>
@@ -212,9 +201,7 @@ export const SyncModal: React.FC<SyncModalProps> = ({
               </div>
             </div>
           ) : (
-            /* Disconnected View - Option to create or enter code */
             <div className="space-y-6">
-              {/* Option 1: Create New Cloud Slot */}
               <div className="space-y-2">
                 <h3 className="text-xs font-bold uppercase tracking-wider text-stone-500">Option 1: Backup & Create Sync Code</h3>
                 <p className="text-xs text-stone-500">
@@ -240,7 +227,6 @@ export const SyncModal: React.FC<SyncModalProps> = ({
                 <div className="flex-grow border-t border-stone-100"></div>
               </div>
 
-              {/* Option 2: Connect Existing Sync Code */}
               <form onSubmit={handleConnectExisting} className="space-y-3">
                 <div className="space-y-1.5">
                   <h3 className="text-xs font-bold uppercase tracking-wider text-stone-500">Option 2: Connect Existing Device Code</h3>

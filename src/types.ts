@@ -15,22 +15,22 @@ export interface FixedAnchor {
   id: string;
   title: string;
   type: 'lecture' | 'meal' | 'custom_anchor';
-  startTime: string; // "HH:mm" (24h)
-  endTime: string;   // "HH:mm" (24h)
+  startTime: string;
+  endTime: string;
   location?: string;
   notes?: string;
   color?: string;
-  daysOfWeek?: number[]; // 0=Sun, 1=Mon, ..., 6=Sat
-  overrideSleep?: boolean; // Bypasses/suppresses sleep collision rules if checked
-  deletedDates?: string[]; // Dates (YYYY-MM-DD) where single instance is deleted/excepted
+  daysOfWeek?: number[];
+  overrideSleep?: boolean;
+  deletedDates?: string[];
 }
 
 export interface OneTimeCommitment {
   id: string;
   title: string;
-  dateStr: string;      // "YYYY-MM-DD"
-  startTime: string;    // "HH:mm"
-  endTime: string;      // "HH:mm"
+  dateStr: string;
+  startTime: string;
+  endTime: string;
   location?: string;
   category?: EventCategory;
   notes?: string;
@@ -42,9 +42,9 @@ export interface OneTimeCommitment {
 export interface MealWindow {
   enabled: boolean;
   name: string;
-  windowStart: string; // "HH:mm" e.g. "07:30"
-  windowEnd: string;   // "HH:mm" e.g. "08:30"
-  durationMinutes: number; // e.g. 30
+  windowStart: string;
+  windowEnd: string;
+  durationMinutes: number;
 }
 
 export interface MealConfig {
@@ -56,12 +56,11 @@ export interface MealConfig {
 
 export interface EverymanSleepConfig {
   enabled: boolean;
-  coreSleepStart: string; // default "01:00"
-  coreSleepDurationMinutes: number; // default 210 = 3.5 hrs
-  napsCount: number; // default 3
-  napDurationMinutes: number; // default 30
-  // Preferred approximate nap center times (in HH:mm)
-  preferredNapTimes: string[]; // e.g. ["08:30", "13:30", "18:30"]
+  coreSleepStart: string;
+  coreSleepDurationMinutes: number;
+  napsCount: number;
+  napDurationMinutes: number;
+  preferredNapTimes: string[];
 }
 
 export interface DynamicTask {
@@ -73,14 +72,14 @@ export interface DynamicTask {
   priority: 'high' | 'medium' | 'low';
   category?: string;
   isCompleted?: boolean;
-  deadline?: string; // "HH:mm" optional target completion time
+  deadline?: string;
   notes?: string;
-  overrideSleep?: boolean; // Bypasses/suppresses sleep collision rules if checked
+  overrideSleep?: boolean;
   isPinned?: boolean;
   pinnedStartTime?: string;
   pinnedDateStr?: string;
-  scheduledStartDate?: string; // "YYYY-MM-DD" optional start date slot
-  scheduledEndDate?: string;   // "YYYY-MM-DD" optional end date slot
+  scheduledStartDate?: string;
+  scheduledEndDate?: string;
 }
 
 export interface WeeklyChore {
@@ -91,9 +90,9 @@ export interface WeeklyChore {
   category?: string;
   notes?: string;
   isScheduled?: boolean;
-  assignedDateStr?: string; // "YYYY-MM-DD"
-  assignedStartTime?: string; // "HH:mm"
-  assignedEndTime?: string;   // "HH:mm"
+  assignedDateStr?: string;
+  assignedStartTime?: string;
+  assignedEndTime?: string;
 }
 
 export interface PomodoroConfig {
@@ -102,9 +101,9 @@ export interface PomodoroConfig {
 }
 
 export interface CategoryHabitData {
-  frictionMultiplier: number; // default 1.0 (e.g. 0.8 to 2.5)
-  sampleCount: number;        // total completions tracked
-  lastUpdated?: string;       // ISO date
+  frictionMultiplier: number;
+  sampleCount: number;
+  lastUpdated?: string;
 }
 
 export interface UserHabitModel {
@@ -115,27 +114,27 @@ export interface ScheduledEvent {
   id: string;
   title: string;
   category: EventCategory;
-  startTime: string; // "HH:mm"
-  endTime: string;   // "HH:mm"
-  startMinutes: number; // minutes from midnight (0..1439)
-  endMinutes: number;   // minutes from midnight (0..1440)
-  dateStr: string;      // "YYYY-MM-DD"
+  startTime: string;
+  endTime: string;
+  startMinutes: number;
+  endMinutes: number;
+  dateStr: string;
   color: string;
-  isLocked: boolean;    // Fixed lectures, core sleep are locked
-  isPinned?: boolean;   // User pinned via drag and drop or manual lock
-  isDraft?: boolean;    // Previewing uncommitted draft
+  isLocked: boolean;
+  isPinned?: boolean;
+  isDraft?: boolean;
   isCompleted?: boolean;
   status?: 'done' | 'pending' | 'in_progress';
-  completedAtMinutes?: number; // Time in mins from midnight when completed
+  completedAtMinutes?: number;
   notes?: string;
-  parentTaskId?: string; // If this event was generated from a DynamicTask or WeeklyChore
-  parentAnchorId?: string; // If this event was generated from a FixedAnchor
-  parentOneTimeId?: string; // If this event was generated from a OneTimeCommitment
+  parentTaskId?: string;
+  parentAnchorId?: string;
+  parentOneTimeId?: string;
   transitType?: 'before' | 'after';
   overrideSleep?: boolean;
-  isPast?: boolean;     // True if event ended before current system time
+  isPast?: boolean;
   isChore?: boolean;
-  frictionAppliedMinutes?: number; // Minutes added due to Habit ML friction
+  frictionAppliedMinutes?: number;
 }
 
 export interface UserScheduleData {
@@ -145,15 +144,9 @@ export interface UserScheduleData {
   sleepConfig: EverymanSleepConfig;
   dynamicTasks: DynamicTask[];
   weeklyChores: WeeklyChore[];
-  decompressionMinutes?: number; // default 45
+  decompressionMinutes?: number;
   pomodoroConfig: PomodoroConfig;
-  scheduledEvents: Record<string, ScheduledEvent[]>; // keyed by dateStr "YYYY-MM-DD"
-  // Auto-generated blocks (meals, naps, pomodoro, core sleep, decompression)
-  // are rebuilt fresh from config on every regeneration and have no stored
-  // identity of their own, so deleting one wouldn't otherwise stick. Keyed
-  // by dateStr -> exclusion keys: 'decompression', 'core_sleep',
-  // 'meal-<breakfast|lunch|snacks|dinner>', 'nap-<1-based index>', or
-  // 'pomo:<startMinutes>-<endMinutes>' for a specific pomodoro block.
+  scheduledEvents: Record<string, ScheduledEvent[]>;
   excludedSlots?: Record<string, string[]>;
   habitModel?: UserHabitModel;
   updatedAt?: string;

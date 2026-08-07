@@ -1,7 +1,3 @@
-/**
- * 100% Offline Audio Synthesizer using Web Audio API.
- * Synthesizes chime tones and alerts without any external audio file downloads.
- */
 
 let audioCtx: AudioContext | null = null;
 
@@ -19,9 +15,6 @@ function getAudioContext(): AudioContext | null {
   return audioCtx;
 }
 
-/**
- * Plays a pleasant double-chime for study/task completion
- */
 export function playTimerCompletionChime(): void {
   try {
     const ctx = getAudioContext();
@@ -29,7 +22,6 @@ export function playTimerCompletionChime(): void {
 
     const now = ctx.currentTime;
 
-    // Note 1: E5 (659.25 Hz)
     const osc1 = ctx.createOscillator();
     const gain1 = ctx.createGain();
     osc1.type = 'sine';
@@ -41,7 +33,6 @@ export function playTimerCompletionChime(): void {
     osc1.start(now);
     osc1.stop(now + 0.8);
 
-    // Note 2: B5 (987.77 Hz) slightly delayed
     const osc2 = ctx.createOscillator();
     const gain2 = ctx.createGain();
     osc2.type = 'sine';
@@ -57,9 +48,6 @@ export function playTimerCompletionChime(): void {
   }
 }
 
-/**
- * Plays a gentle break alert chime
- */
 export function playBreakStartChime(): void {
   try {
     const ctx = getAudioContext();
@@ -70,8 +58,8 @@ export function playBreakStartChime(): void {
     const osc = ctx.createOscillator();
     const gain = ctx.createGain();
     osc.type = 'triangle';
-    osc.frequency.setValueAtTime(523.25, now); // C5
-    osc.frequency.exponentialRampToValueAtTime(783.99, now + 0.5); // G5
+    osc.frequency.setValueAtTime(523.25, now);
+    osc.frequency.exponentialRampToValueAtTime(783.99, now + 0.5);
     gain.gain.setValueAtTime(0.2, now);
     gain.gain.exponentialRampToValueAtTime(0.001, now + 0.9);
     osc.connect(gain);
@@ -83,9 +71,6 @@ export function playBreakStartChime(): void {
   }
 }
 
-/**
- * Plays a subtle tick sound for timer countdowns
- */
 export function playTickSound(): void {
   try {
     const ctx = getAudioContext();
@@ -105,6 +90,5 @@ export function playTickSound(): void {
     osc.start(now);
     osc.stop(now + 0.05);
   } catch {
-    // ignore
   }
 }

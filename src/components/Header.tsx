@@ -29,7 +29,6 @@ interface HeaderProps {
   onOpenSync: () => void;
 }
 
-// Kitose Mark — 季時 (Seasonal & Temporal Flow Mark)
 const KitoseMark: React.FC<{ className?: string }> = ({ className }) => (
   <svg viewBox="0 0 28 28" fill="none" className={className} aria-hidden="true">
     <rect width="28" height="28" rx="8" fill="var(--color-vela-600)" />
@@ -78,7 +77,6 @@ export const Header: React.FC<HeaderProps> = ({
   return (
     <header className="bg-white border-b border-stone-200 text-stone-900 px-4 md:px-6 py-3 shadow-xs sticky top-0 z-30">
       <div className="max-w-7xl mx-auto flex flex-col md:flex-row items-center justify-between gap-3 md:gap-4">
-        {/* Brand */}
         <div className="flex items-center gap-3 w-full md:w-auto justify-between md:justify-start">
           <div className="flex items-center gap-2.5">
             <KitoseMark className="w-7 h-7 shrink-0" />
@@ -90,7 +88,6 @@ export const Header: React.FC<HeaderProps> = ({
             </div>
           </div>
 
-          {/* Date Navigator (Mobile View) */}
           <div className="flex md:hidden items-center gap-1 bg-stone-100 p-1 rounded-md border border-stone-200 text-xs">
             <button onClick={handlePrevDay} className="p-1 hover:bg-stone-200 rounded text-stone-700">
               <ChevronLeft className="w-4 h-4" />
@@ -102,7 +99,6 @@ export const Header: React.FC<HeaderProps> = ({
           </div>
         </div>
 
-        {/* Date Controls (Desktop) */}
         <div className="hidden md:flex items-center gap-2 bg-stone-50 p-1 rounded-md border border-stone-200">
           <button
             onClick={handlePrevDay}
@@ -136,7 +132,6 @@ export const Header: React.FC<HeaderProps> = ({
           />
         </div>
 
-        {/* Modes, Presets, Sync, More */}
         <div className="flex items-center gap-2 max-w-full">
           <div className="flex bg-stone-100 rounded-md p-1 text-xs font-bold text-stone-500 border border-stone-200/80">
             <button
@@ -177,7 +172,6 @@ export const Header: React.FC<HeaderProps> = ({
             <span className="hidden sm:inline">{isSyncActive ? 'Synced' : 'Sync'}</span>
           </button>
 
-          {/* Overflow menu: Export, Import, Reset */}
           <div className="relative">
             <button
               onClick={() => setIsMoreOpen((v) => !v)}

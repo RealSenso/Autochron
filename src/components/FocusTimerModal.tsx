@@ -15,42 +15,34 @@ export const FocusTimerModal: React.FC<FocusTimerModalProps> = ({
   onClose,
   onEventComplete,
 }) => {
-  // Sort events chronologically
   const sortedEvents = useMemo(() => {
     return [...events].sort((a, b) => a.startMinutes - b.startMinutes);
   }, [events]);
 
-  // Determine initial active event based on current real time or next upcoming
   const defaultEvent = useMemo(() => {
     const now = new Date();
     const currentMins = now.getHours() * 60 + now.getMinutes();
 
-    // 1. Current active event happening now (uncompleted)
     const ongoing = sortedEvents.find(
       (e) => !e.isCompleted && e.startMinutes <= currentMins && currentMins < e.endMinutes
     );
     if (ongoing) return ongoing;
 
-    // 2. Next upcoming uncompleted event today
     const upcoming = sortedEvents.find((e) => !e.isCompleted && e.startMinutes > currentMins);
     if (upcoming) return upcoming;
 
-    // 3. First uncompleted event overall
     const firstUncompleted = sortedEvents.find((e) => !e.isCompleted);
     if (firstUncompleted) return firstUncompleted;
 
-    // 4. Fallback to first event
     return sortedEvents[0] || null;
   }, [sortedEvents]);
 
   const [selectedEventId, setSelectedEventId] = useState<string | null>(defaultEvent?.id || null);
 
-  // Fallback to defaultEvent if selected event no longer exists
   const activeEvent = useMemo(() => {
     return sortedEvents.find((e) => e.id === selectedEventId) || defaultEvent;
   }, [sortedEvents, selectedEventId, defaultEvent]);
 
-  // Calculate default total duration in seconds
   const defaultDurationSeconds = useMemo(() => {
     return activeEvent ? Math.max(300, (activeEvent.endMinutes - activeEvent.startMinutes) * 60) : 1500;
   }, [activeEvent]);
@@ -59,14 +51,12 @@ export const FocusTimerModal: React.FC<FocusTimerModalProps> = ({
   const [secondsRemaining, setSecondsRemaining] = useState(defaultDurationSeconds);
   const [isRunning, setIsRunning] = useState(false);
 
-  // Sync state when active event changes
   useEffect(() => {
     setTotalDurationSeconds(defaultDurationSeconds);
     setSecondsRemaining(defaultDurationSeconds);
     setIsRunning(false);
   }, [activeEvent?.id, defaultDurationSeconds]);
 
-  // Handle countdown timer loop
   useEffect(() => {
     let interval: NodeJS.Timeout | null = null;
 
@@ -81,7 +71,6 @@ export const FocusTimerModal: React.FC<FocusTimerModalProps> = ({
     };
   }, [isRunning, secondsRemaining]);
 
-  // Handle completion when timer hits zero
   useEffect(() => {
     if (secondsRemaining === 0 && isRunning) {
       setIsRunning(false);
@@ -96,7 +85,6 @@ export const FocusTimerModal: React.FC<FocusTimerModalProps> = ({
     }
   }, [secondsRemaining, isRunning, activeEvent, onEventComplete]);
 
-  // Quick duration adjustments (+5m, -5m)
   const adjustTime = (deltaMins: number) => {
     playTickSound();
     const deltaSecs = deltaMins * 60;
@@ -155,7 +143,6 @@ export const FocusTimerModal: React.FC<FocusTimerModalProps> = ({
   return (
     <div className="fixed inset-0 z-50 bg-stone-900/40 backdrop-blur-xs flex items-center justify-center p-4 animate-fade-in overflow-y-auto">
       <div className="w-full max-w-lg bg-white border border-stone-200 rounded-2xl p-6 md:p-8 shadow-xl relative space-y-6 my-auto animate-scale-in">
-        {/* Close Button */}
         <button
           onClick={onClose}
           className="absolute top-4 right-4 p-2 text-stone-400 hover:text-stone-700 hover:bg-stone-100 rounded-lg transition-colors cursor-pointer"
@@ -164,7 +151,6 @@ export const FocusTimerModal: React.FC<FocusTimerModalProps> = ({
           <X className="w-5 h-5" />
         </button>
 
-        {/* Top Header & Event Dropdown Selector */}
         <div className="text-center space-y-2">
           <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-vela-50 text-vela-700 border border-vela-200/80 text-[11px] font-bold uppercase tracking-wider">
             <span>{activeEvent.category.replace('_', ' ')}</span>
@@ -172,7 +158,6 @@ export const FocusTimerModal: React.FC<FocusTimerModalProps> = ({
             <span>Focus Session</span>
           </div>
 
-          {/* Selector Dropdown */}
           <div className="relative inline-block w-full max-w-md mx-auto">
             <select
               value={activeEvent.id}
@@ -194,7 +179,6 @@ export const FocusTimerModal: React.FC<FocusTimerModalProps> = ({
           </p>
         </div>
 
-        {/* Circular Countdown Display */}
         <div className="relative w-52 h-52 md:w-60 md:h-60 mx-auto flex items-center justify-center my-2">
           <svg className="w-full h-full transform -rotate-90" viewBox="0 0 100 100">
             <circle
@@ -235,7 +219,6 @@ export const FocusTimerModal: React.FC<FocusTimerModalProps> = ({
           </div>
         </div>
 
-        {/* Time Adjustments */}
         <div className="flex items-center justify-center gap-2">
           <button
             onClick={() => adjustTime(-5)}
@@ -255,7 +238,6 @@ export const FocusTimerModal: React.FC<FocusTimerModalProps> = ({
           </button>
         </div>
 
-        {/* Main Controls Bar */}
         <div className="flex items-center justify-center gap-3">
           <button
             onClick={handleReset}
@@ -297,7 +279,6 @@ export const FocusTimerModal: React.FC<FocusTimerModalProps> = ({
           </button>
         </div>
 
-        {/* Clickable Queue Section */}
         {queueEvents.length > 0 && (
           <div className="border-t border-stone-100 pt-4 space-y-2">
             <div className="flex items-center justify-between">

@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react';
-import { UserScheduleData, ScheduledEvent, EventCategory } from './types';
+import { UserScheduleData, ScheduledEvent } from './types';
 import {
   loadUserData,
   saveUserData,
@@ -22,23 +22,9 @@ import { saveScheduleBySyncCode, db } from './lib/firebase';
 import { doc, onSnapshot } from 'firebase/firestore';
 import { SyncModal } from './components/SyncModal';
 
-// Categories with no stored per-occurrence identity of their own — always
-// rebuilt fresh from sleep/meal/pomodoro settings, so deleting an instance
-// has to be recorded as an exclusion (see buildExclusionKey) rather than a
-// plain array removal.
-const GENERATED_CATEGORIES = new Set<EventCategory>([
-  'meal',
-  'nap',
-  'pomodoro_study',
-  'pomodoro_break',
-  'core_sleep',
-  'decompression',
-]);
-
 export default function App() {
   const [userData, rawSetUserData] = useState<UserScheduleData>(() => loadUserData());
 
-  // Wrapper setter that automatically injects updatedAt whenever any local edit is made
   const setUserData = useCallback((value: UserScheduleData | ((prev: UserScheduleData) => UserScheduleData)) => {
     rawSetUserData((prev) => {
       const next = typeof value === 'function' ? value(prev) : value;
@@ -52,10 +38,6 @@ export default function App() {
   const [pastStates, setPastStates] = useState<UserScheduleData[]>([]);
   const [toast, setToast] = useState<{ message: string; id: number } | null>(null);
 
-  // Auto-dismiss any toast after a fixed delay. Centralized here (rather than a
-  // setTimeout at each setToast call site) so every toast — undo, event saved,
-  // Habit ML update — behaves consistently; previously only the undo toast had
-  // an auto-dismiss timer and the rest stayed on screen indefinitely.
   useEffect(() => {
     if (!toast) return;
     const timer = setTimeout(() => setToast(null), 2500);
@@ -66,7 +48,6 @@ export default function App() {
   const [activeTab, setActiveTab] = useState<'timeline' | 'focus'>('timeline');
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
 
-  // Modals & Active Edit States
   const [editingEvent, setEditingEvent] = useState<ScheduledEvent | null>(null);
   const [creatingSlotTime, setCreatingSlotTime] = useState<string | null>(null);
   const [isGenerating, setIsGenerating] = useState(false);
@@ -80,7 +61,6 @@ export default function App() {
   const hasLoadedCloudData = useRef(!syncCode);
   const lastSeenCloudTimestamp = useRef<string>('');
 
-  // Sync state change handler
   const handleSyncCodeChange = (newCode: string | null) => {
     setSyncCode(newCode);
     if (newCode) {
@@ -94,7 +74,6 @@ export default function App() {
     }
   };
 
-  // Set up real-time Firebase syncing via Sync Code
   useEffect(() => {
     if (!syncCode) {
       hasLoadedCloudData.current = true;
@@ -111,7 +90,6 @@ export default function App() {
           const localTime = prevLocal.updatedAt ? new Date(prevLocal.updatedAt).getTime() : 0;
           const cloudTime = cloudData.updatedAt ? new Date(cloudData.updatedAt).getTime() : 0;
 
-          // If cloud timestamp is strictly newer, accept cloud data
           if (cloudTime > localTime) {
             return {
               ...prevLocal,
@@ -123,7 +101,6 @@ export default function App() {
               scheduledEvents: cloudData.scheduledEvents || {},
             };
           }
-          // If local data is newer, keep local data and queue an upload to keep cloud in sync
           if (localTime > cloudTime) {
             saveScheduleBySyncCode(syncCode, prevLocal).catch((err) => {
               console.error('Failed to resolve newer local offline changes to cloud:', err);
@@ -135,21 +112,19 @@ export default function App() {
       hasLoadedCloudData.current = true;
     }, (err) => {
       console.error('Snapshot subscription error:', err);
-      // Fail-safe: allow editing offline if we hit permission or network errors
       hasLoadedCloudData.current = true;
     });
 
     return unsubscribe;
   }, [syncCode]);
 
-  // Helper to update UserData while pushing to Undo History Stack
   const updateUserDataWithHistory = (
     updater: (prev: UserScheduleData) => UserScheduleData,
     toastMsg?: string
   ) => {
     setUserData((prev) => {
       const next = updater(prev);
-      setPastStates((history) => [...history.slice(-9), prev]); // cap at 10 states
+      setPastStates((history) => [...history.slice(-9), prev]);
       return next;
     });
     if (toastMsg) {
@@ -165,23 +140,19 @@ export default function App() {
     setToast({ message: 'Action undone!', id: Date.now() });
   };
 
-  // Save to localStorage and push to cloud whenever userData changes
   useEffect(() => {
     saveUserData(userData);
 
     if (syncCode) {
       if (!hasLoadedCloudData.current) {
-        // Prevent stale local data from overwriting cloud on startup/connect
         return;
       }
 
       const localTime = userData.updatedAt ? new Date(userData.updatedAt).getTime() : 0;
       const cloudTime = lastSeenCloudTimestamp.current ? new Date(lastSeenCloudTimestamp.current).getTime() : 0;
 
-      // Only write to cloud if local is genuinely newer than what we last saw in the cloud
       if (localTime > cloudTime) {
         saveScheduleBySyncCode(syncCode, userData).then(() => {
-          // Update last seen cloud timestamp to match what we just wrote
           lastSeenCloudTimestamp.current = userData.updatedAt || '';
         }).catch((err) => {
           console.error('Error syncing local change to cloud:', err);
@@ -190,7 +161,6 @@ export default function App() {
     }
   }, [userData, syncCode]);
 
-  // Derive target day of week (0=Sun, 1=Mon, ..., 6=Sat)
   const targetDayOfWeek = useMemo(() => {
     try {
       const d = parse(currentDateStr, 'yyyy-MM-dd', new Date());
@@ -200,9 +170,6 @@ export default function App() {
     }
   }, [currentDateStr]);
 
-  // Compute schedule result for current date.
-  // If user has saved/committed events for currentDateStr, use them directly (updating isPast and stats).
-  // Otherwise, fallback to generating an optimized schedule fresh.
   const scheduleResult = useMemo(() => {
     const savedEvents = userData.scheduledEvents[currentDateStr];
     if (savedEvents !== undefined) {
@@ -260,7 +227,6 @@ export default function App() {
     return generateOptimizedSchedule(userData, currentDateStr, targetDayOfWeek);
   }, [userData, currentDateStr, targetDayOfWeek]);
 
-  // When in draft mode, update or generate draft events for whatever date is selected
   useEffect(() => {
     if (isDraftMode) {
       const fresh = generateOptimizedSchedule(userData, currentDateStr, targetDayOfWeek);
@@ -271,7 +237,6 @@ export default function App() {
     }
   }, [currentDateStr, isDraftMode, targetDayOfWeek]);
 
-  // Action: Generate / Re-optimize Schedule (saves into Draft state)
   const handleGenerateSchedule = () => {
     setIsGenerating(true);
     setTimeout(() => {
@@ -293,7 +258,6 @@ export default function App() {
     }, 200);
   };
 
-  // Action: Commit Draft Schedule to Live Persistence
   const handleCommitDraft = () => {
     if (!draftEvents) return;
     const committedEvents = draftEvents.map((ev) => ({ ...ev, isDraft: false }));
@@ -308,13 +272,11 @@ export default function App() {
     setDraftEvents(null);
   };
 
-  // Action: Discard Draft
   const handleDiscardDraft = () => {
     setIsDraftMode(false);
     setDraftEvents(null);
   };
 
-  // Action: Toggle Pin Event & Recalculate
   const handleTogglePinEvent = (targetEvent: ScheduledEvent) => {
     const nextIsPinned = !targetEvent.isPinned;
     const currentList = draftEvents || scheduleResult.events;
@@ -361,13 +323,7 @@ export default function App() {
     setDraftEvents(draftWithFlag);
   };
 
-  // Event updates (completion, drag, edit) with Habit ML learning
   const handleEventUpdate = (updatedEvent: ScheduledEvent) => {
-    // Resolve completion from the incoming update only — never OR it against the
-    // event's previous `status`, or un-completing an event could never actually
-    // clear 'done' (status would stay 'done' forever since the old value survives
-    // the ...updatedEvent spread untouched), permanently locking it as immutable
-    // in future schedule regenerations and re-triggering the Habit ML update below.
     const resolvedIsCompleted = updatedEvent.isCompleted ?? (updatedEvent.status === 'done');
 
     const updatedEventWithStatus: ScheduledEvent = {
@@ -394,9 +350,6 @@ export default function App() {
       const existingSavedEvents = prev.scheduledEvents[currentDateStr] || [];
       const currentActiveEvents = scheduleResult.events || [];
 
-      // Determine base event list for today:
-      // Start with existing saved events, but if updatedEvent isn't in existingSavedEvents,
-      // merge with current active scheduleResult events so no generated events are lost.
       let baseList: ScheduledEvent[];
       if (existingSavedEvents.some((ev) => ev.id === updatedEvent.id)) {
         baseList = existingSavedEvents;
@@ -494,10 +447,6 @@ export default function App() {
     });
   };
 
-  // Delete an event instance from today's schedule view.
-  // Delete an event instance from today's schedule view.
-  // Routes to specific handlers (anchor exceptions, task/chore deletions,
-  // one-time commitment removal, or auto-generated slot exclusions) as appropriate.
   const handleEventDelete = (eventId: string) => {
     if (draftEvents) {
       setDraftEvents((prevDraft) => {
@@ -553,12 +502,6 @@ export default function App() {
     }, 'Event removed');
   };
 
-  // Delete a single instance of a recurring anchor (Exceptions). Adding the
-  // date to deletedDates is what actually matters — the anchor still exists,
-  // so Step 1 of the scheduler would otherwise just rebuild this exact
-  // occurrence again on the very next render. Also purge any already-
-  // committed copy of it (e.g. if the user had pinned or completed it),
-  // since Step 0A-1's pull-forward doesn't consult deletedDates.
   const handleDeleteAnchorInstance = (anchorId: string, dateStr: string) => {
     updateUserDataWithHistory((prev) => {
       const cleanId = anchorId.replace(/^anchor-/, '').replace(/-p[12]$/, '');
@@ -594,8 +537,6 @@ export default function App() {
     setDraftEvents(null);
   };
 
-  // One-time commitments don't recur, so "delete" always means "remove it
-  // entirely" — there's no single-occurrence concept to exclude.
   const handleDeleteOneTimeCommitment = (otcId: string) => {
     updateUserDataWithHistory((prev) => {
       const scheduledEvents: typeof prev.scheduledEvents = {};
@@ -611,10 +552,6 @@ export default function App() {
     setDraftEvents(null);
   };
 
-  // Dynamic tasks and weekly chores are one-off todos, not day-scoped
-  // recurrences, so deleting a rendered instance means removing the task/
-  // chore itself. parentTaskId is shared between the two, so only one of
-  // these filters ever actually matches for a given id.
   const handleDeleteDynamicTaskOrChore = (taskId: string) => {
     updateUserDataWithHistory((prev) => {
       const scheduledEvents: typeof prev.scheduledEvents = {};
@@ -631,9 +568,6 @@ export default function App() {
     setDraftEvents(null);
   };
 
-  // Builds the exclusion key for an auto-generated event's category (see
-  // UserScheduleData.excludedSlots), or null if this category has no
-  // per-occurrence identity to exclude by.
   const buildExclusionKey = (event: ScheduledEvent): string | null => {
     switch (event.category) {
       case 'decompression':
@@ -663,12 +597,6 @@ export default function App() {
     }
   };
 
-  // Meals/naps/pomodoro/core sleep/decompression have no per-occurrence
-  // identity of their own — they're rebuilt fresh from settings every time.
-  // To make a specific deleted instance actually stay gone, record its
-  // exclusion key for this date so future regenerations skip recreating it,
-  // instead of just removing the rendered copy (which the scheduler engine
-  // itself already refuses to leave stale — see isOrphanedEvent).
   const handleExcludeGeneratedSlot = (event: ScheduledEvent) => {
     const key = buildExclusionKey(event);
     const dateStr = event.dateStr || currentDateStr;
@@ -695,8 +623,6 @@ export default function App() {
     setDraftEvents(null);
   };
 
-  // Undo all of today's manual removals of auto-generated blocks, letting
-  // meals/naps/pomodoro/sleep/decompression fill back in normally.
   const handleClearExclusions = () => {
     updateUserDataWithHistory((prev) => {
       const excludedSlots = { ...(prev.excludedSlots || {}) };
@@ -708,7 +634,6 @@ export default function App() {
     setDraftEvents(null);
   };
 
-  // Delete entire recurring anchor series
   const handleDeleteAnchorSeries = (anchorId: string) => {
     updateUserDataWithHistory((prev) => {
       const cleanId = anchorId.replace(/^anchor-/, '').replace(/-p[12]$/, '');
@@ -738,7 +663,6 @@ export default function App() {
     setDraftEvents(null);
   };
 
-  // Create custom manual event
   const handleSaveCustomEvent = (newEvent: ScheduledEvent) => {
     if (draftEvents) {
       setDraftEvents((prevDraft) => {
@@ -771,9 +695,8 @@ export default function App() {
     }, 'Event saved');
   };
 
-      {/* Create / Edit Event Modal */}
+      {}
 
-  // Reset to Defaults
   const handleResetToDefaults = () => {
     if (window.confirm('Are you sure you want to reset all schedule settings to defaults?')) {
       clearUserData();
@@ -781,12 +704,10 @@ export default function App() {
     }
   };
 
-  // Export JSON
   const handleExport = () => {
     exportUserDataAsJSON(userData);
   };
 
-  // Import JSON
   const handleImportTrigger = () => {
     fileInputRef.current?.click();
   };
@@ -812,7 +733,6 @@ export default function App() {
 
   return (
     <div className="h-screen w-screen bg-stone-100 text-stone-900 flex flex-col font-sans select-none overflow-hidden">
-      {/* Hidden File Input for JSON Backup Import */}
       <input
         type="file"
         ref={fileInputRef}
@@ -821,7 +741,6 @@ export default function App() {
         className="hidden"
       />
 
-      {/* Top Header */}
       <Header
         currentDateStr={currentDateStr}
         onDateChange={setCurrentDateStr}
@@ -837,9 +756,7 @@ export default function App() {
         onOpenSync={() => setIsSyncModalOpen(true)}
       />
 
-      {/* Main Content Workspace (Sidebar + Viewport) */}
       <div className="flex-1 flex min-h-0 overflow-hidden">
-        {/* Sidebar Input Panel */}
         <Sidebar
           data={userData}
           onUpdateData={(newData) => updateUserDataWithHistory(() => newData)}
@@ -848,7 +765,6 @@ export default function App() {
           onToggleOpen={() => setIsSidebarOpen(!isSidebarOpen)}
         />
 
-        {/* Viewport Content */}
         <main className="flex-1 flex flex-col min-w-0 min-h-0 overflow-hidden">
           {activeTab === 'timeline' && (
             <TimelineView
@@ -886,7 +802,6 @@ export default function App() {
         </main>
       </div>
 
-      {/* Create / Edit Event Modal */}
       {(editingEvent || creatingSlotTime) && (
         <EventModal
           event={editingEvent}
@@ -904,7 +819,6 @@ export default function App() {
         />
       )}
 
-      {/* Global Undo Toast */}
       {toast && (
         <UndoToast
           message={toast.message}
@@ -913,7 +827,6 @@ export default function App() {
         />
       )}
 
-      {/* Synchronization Modal */}
       {isSyncModalOpen && (
         <SyncModal
           isOpen={isSyncModalOpen}

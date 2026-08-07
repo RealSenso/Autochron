@@ -12,9 +12,6 @@ export const DEFAULT_HABIT_MODEL: UserHabitModel = {
   },
 };
 
-/**
-  * Normalize category names to map user categories to habit model keys.
-  */
 export function normalizeCategoryKey(category: string): string {
   if (!category) return 'task';
   const cat = category.trim().toLowerCase();
@@ -26,9 +23,6 @@ export function normalizeCategoryKey(category: string): string {
   return cat;
 }
 
-/**
-  * Retrieve category friction multiplier from habit model.
-  */
 export function getCategoryFrictionMultiplier(
   model: UserHabitModel | undefined,
   category: string
@@ -42,9 +36,6 @@ export function getCategoryFrictionMultiplier(
   return Math.min(Math.max(habitData.frictionMultiplier, 0.8), 2.5);
 }
 
-/**
-  * Calculate effective duration for dynamic task or study block applying friction multiplier.
-  */
 export function getEffectiveTaskDuration(
   model: UserHabitModel | undefined,
   category: string,
@@ -56,10 +47,6 @@ export function getEffectiveTaskDuration(
   return { effectiveDuration, frictionAdded, multiplier };
 }
 
-/**
-  * Exponential Moving Average (EMA) update for category friction multiplier.
-  * Formula: newMultiplier = (0.2 * (actualDuration / plannedDuration)) + (0.8 * currentMultiplier)
-  */
 export function updateHabitFrictionOnTaskDone(
   model: UserHabitModel | undefined,
   category: string,
@@ -75,7 +62,6 @@ export function updateHabitFrictionOnTaskDone(
   const planned = Math.max(10, plannedDurationMinutes);
   const actual = Math.max(5, actualDurationMinutes);
 
-  // Bound ratio between 0.5 and 2.5 to avoid single extreme outliers from distorting multipliers
   const rawRatio = actual / planned;
   const boundedRatio = Math.min(Math.max(rawRatio, 0.5), 2.5);
 
@@ -86,7 +72,6 @@ export function updateHabitFrictionOnTaskDone(
 
   const currentMultiplier = currentData.frictionMultiplier ?? 1.0;
 
-  // Rolling EMA calculation as specified
   const rawNewMultiplier = 0.2 * boundedRatio + 0.8 * currentMultiplier;
   const newMultiplier = Math.min(Math.max(rawNewMultiplier, 0.8), 2.5);
 

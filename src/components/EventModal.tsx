@@ -4,7 +4,7 @@ import { X, Clock, Lock, Unlock, Trash2, Sparkles, Pencil, CheckCircle2 } from '
 import { formatTime12h, timeToMinutes, minutesToTime } from '../utils/timeUtils';
 
 interface EventModalProps {
-  event: ScheduledEvent | null; // null if creating new
+  event: ScheduledEvent | null;
   defaultStartTime?: string;
   dateStr: string;
   onSave: (event: ScheduledEvent) => void;
@@ -79,14 +79,14 @@ export const EventModal: React.FC<EventModalProps> = ({
   const [isPinned, setIsPinned] = useState(event?.isPinned ?? (event ? false : true));
   const [overrideSleep, setOverrideSleep] = useState(event?.overrideSleep || false);
   const [notes, setNotes] = useState(event?.notes || '');
-  const [color, setColor] = useState(event?.color || '#6366f1');
+  const [color] = useState(event?.color || '#6366f1');
   const [isCompleted, setIsCompleted] = useState(event?.isCompleted || event?.status === 'done' || false);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     const sMins = timeToMinutes(startTime);
     let eMins = timeToMinutes(endTime);
-    if (eMins <= sMins) eMins = sMins + 30; // safety
+    if (eMins <= sMins) eMins = sMins + 30;
 
     const updatedEvent: ScheduledEvent = {
       id: event?.id || `custom-event-${Date.now()}`,
@@ -110,7 +110,6 @@ export const EventModal: React.FC<EventModalProps> = ({
     onClose();
   };
 
-  // Duration calculation for display
   const getDurationDisplay = () => {
     let startVal = startTime;
     let endVal = endTime;
@@ -124,13 +123,10 @@ export const EventModal: React.FC<EventModalProps> = ({
     return `${hours > 0 ? `${hours}h ` : ''}${mins > 0 ? `${mins}m` : ''}` || '0m';
   };
 
-  const catStyle = getCategoryStyles(category);
-
   return (
     <div className="fixed inset-0 z-50 bg-stone-900/40 backdrop-blur-xs flex items-center justify-center p-4 animate-fade-in">
       <div className="bg-white border border-stone-200 rounded-lg p-6 w-full max-w-md shadow-lg space-y-5 text-stone-800 transition-all animate-scale-in">
         
-        {/* HEADER */}
         <div className="flex items-center justify-between pb-3 border-b border-stone-100">
           <h3 className="font-display font-semibold text-sm text-stone-800 flex items-center gap-2">
             <Sparkles className="w-4 h-4 text-vela-600" />
@@ -148,10 +144,8 @@ export const EventModal: React.FC<EventModalProps> = ({
           </button>
         </div>
 
-        {/* VIEW MODE */}
         {!isEditMode && event ? (
           <div className="space-y-5 text-xs">
-            {/* Title & Category Badge */}
             <div className="space-y-2">
               <div className="flex items-start justify-between gap-3 flex-wrap">
                 <h2 className="text-base font-bold text-stone-800 tracking-tight leading-snug break-words max-w-[70%]">
@@ -163,7 +157,6 @@ export const EventModal: React.FC<EventModalProps> = ({
                 </span>
               </div>
 
-              {/* Time Interval & Duration Card */}
               <div className="flex items-center gap-3 text-stone-600 bg-stone-50 p-3 rounded-md border border-stone-100">
                 <Clock className="w-4 h-4 text-stone-400 shrink-0" />
                 <div className="flex flex-col">
@@ -177,7 +170,6 @@ export const EventModal: React.FC<EventModalProps> = ({
               </div>
             </div>
 
-            {/* Notes / Details */}
             <div className="space-y-1.5">
               <h4 className="text-[10px] font-bold text-stone-400 uppercase tracking-wider">Notes / Details</h4>
               <div className="bg-stone-50/50 border border-stone-200/60 p-3 rounded-md text-stone-600 leading-relaxed">
@@ -189,9 +181,7 @@ export const EventModal: React.FC<EventModalProps> = ({
               </div>
             </div>
 
-            {/* Quick Toggle Settings Grid */}
             <div className="grid grid-cols-2 gap-2">
-              {/* Interactive Status Button */}
               <button
                 type="button"
                 onClick={() => {
@@ -217,7 +207,6 @@ export const EventModal: React.FC<EventModalProps> = ({
                 </div>
               </button>
 
-              {/* Locked State Card */}
               <div className={`flex items-center gap-2 p-2.5 rounded-md border ${
                 event.isLocked
                   ? 'bg-amber-50/50 text-amber-800 border-amber-200/60'
@@ -236,7 +225,6 @@ export const EventModal: React.FC<EventModalProps> = ({
                 </div>
               </div>
 
-              {/* Override Sleep Config */}
               <div className={`col-span-2 flex items-center gap-2 p-2.5 rounded-md border ${
                 event.overrideSleep
                   ? 'bg-purple-50/50 text-purple-800 border-purple-200/60'
@@ -253,7 +241,6 @@ export const EventModal: React.FC<EventModalProps> = ({
                 </div>
               </div>
 
-              {/* ML Buffer Note */}
               {!!event.frictionAppliedMinutes && event.frictionAppliedMinutes > 0 && (
                 <div className="col-span-2 flex items-center gap-2 p-2.5 rounded-md border bg-purple-50/60 text-purple-900 border-purple-100">
                   <div className="w-1.5 h-1.5 rounded-full bg-purple-500 animate-pulse shrink-0"></div>
@@ -267,7 +254,6 @@ export const EventModal: React.FC<EventModalProps> = ({
               )}
             </div>
 
-            {/* FOOTER ACTIONS */}
             <div className="flex items-center justify-between gap-2 pt-3 border-t border-stone-100 flex-wrap">
               {event && (
                 <div className="flex items-center gap-1.5 flex-wrap">
@@ -350,7 +336,6 @@ export const EventModal: React.FC<EventModalProps> = ({
             </div>
           </div>
         ) : (
-          /* EDIT MODE (FORM) */
           <form onSubmit={handleSubmit} className="space-y-4 text-xs">
             <div>
               <label className="text-[11px] font-bold text-stone-600 block mb-1">Event Title</label>

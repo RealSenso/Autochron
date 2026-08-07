@@ -50,9 +50,6 @@ export function handleFirestoreError(error: unknown, operationType: OperationTyp
   throw new Error(JSON.stringify(errInfo));
 }
 
-/**
- * Sync schedule data directly to Firestore
- */
 export async function saveScheduleBySyncCode(syncCode: string, data: UserScheduleData): Promise<void> {
   if (!syncCode || syncCode.length < 6) return;
   const formattedCode = syncCode.toUpperCase().trim();
@@ -60,7 +57,6 @@ export async function saveScheduleBySyncCode(syncCode: string, data: UserSchedul
   try {
     const docRef = doc(db, 'sync_schedules', formattedCode);
     
-    // Clean data (remove undefined and serialize clean JSON)
     const cleaned = JSON.parse(JSON.stringify(data, (key, value) => {
       return value === undefined ? null : value;
     }));
@@ -73,9 +69,6 @@ export async function saveScheduleBySyncCode(syncCode: string, data: UserSchedul
   }
 }
 
-/**
- * Fetch schedule data directly from Firestore
- */
 export async function fetchScheduleBySyncCode(syncCode: string): Promise<UserScheduleData | null> {
   if (!syncCode || syncCode.length < 6) return null;
   const formattedCode = syncCode.toUpperCase().trim();

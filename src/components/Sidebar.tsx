@@ -50,15 +50,13 @@ export const Sidebar: React.FC<SidebarProps> = ({
 }) => {
   const [activeTab, setActiveTab] = useState<'anchors' | 'meals' | 'tasks' | 'onetime' | 'settings'>('anchors');
 
-  // Lecture / Anchor Form State
   const [newAnchorTitle, setNewAnchorTitle] = useState('');
   const [newAnchorStart, setNewAnchorStart] = useState('09:00');
   const [newAnchorEnd, setNewAnchorEnd] = useState('10:30');
   const [newAnchorLocation, setNewAnchorLocation] = useState('');
-  const [newAnchorDays, setNewAnchorDays] = useState<number[]>([1, 2, 3, 4, 5]); // Default Mon-Fri
+  const [newAnchorDays, setNewAnchorDays] = useState<number[]>([1, 2, 3, 4, 5]);
   const [newAnchorOverrideSleep, setNewAnchorOverrideSleep] = useState(false);
 
-  // One-Time Commitment Form State
   const [newOtcTitle, setNewOtcTitle] = useState('');
   const [newOtcDate, setNewOtcDate] = useState(getTodayStr());
   const [newOtcStart, setNewOtcStart] = useState('14:00');
@@ -66,7 +64,6 @@ export const Sidebar: React.FC<SidebarProps> = ({
   const [newOtcLocation, setNewOtcLocation] = useState('');
   const [newOtcOverrideSleep, setNewOtcOverrideSleep] = useState(false);
 
-  // Dynamic Task Form State
   const [newTaskTitle, setNewTaskTitle] = useState('');
   const [newTaskDuration, setNewTaskDuration] = useState(60);
   const [newTaskRequiresTransit, setNewTaskRequiresTransit] = useState(false);
@@ -79,16 +76,11 @@ export const Sidebar: React.FC<SidebarProps> = ({
   const [newTaskEndDate, setNewTaskEndDate] = useState('');
   const [newTaskDeadline, setNewTaskDeadline] = useState('');
 
-  // Weekly Chores form state
   const [newChoreTitle, setNewChoreTitle] = useState('');
   const [newChoreDuration, setNewChoreDuration] = useState(30);
   const [newChorePriority, setNewChorePriority] = useState<'high' | 'medium' | 'low'>('medium');
   const [newChoreCategory, setNewChoreCategory] = useState('');
 
-  // Strips already-committed events derived from a deleted source (anchor,
-  // one-time commitment, task, or chore) out of scheduledEvents across every
-  // date. The scheduler also refuses to re-render orphaned events, but this
-  // keeps stored data from accumulating dead entries forever.
   const purgeScheduledEvents = (
     matches: (ev: ScheduledEvent) => boolean
   ): Record<string, ScheduledEvent[]> => {
@@ -100,7 +92,6 @@ export const Sidebar: React.FC<SidebarProps> = ({
     return next;
   };
 
-  // Add Fixed Lecture Anchor
   const handleAddAnchor = (e: React.FormEvent) => {
     e.preventDefault();
     if (!newAnchorTitle.trim()) return;
@@ -136,7 +127,6 @@ export const Sidebar: React.FC<SidebarProps> = ({
     });
   };
 
-  // Add One-Time Commitment
   const handleAddOneTime = (e: React.FormEvent) => {
     e.preventDefault();
     if (!newOtcTitle.trim() || !newOtcDate.trim()) return;
@@ -207,14 +197,12 @@ export const Sidebar: React.FC<SidebarProps> = ({
     });
   };
 
-  // Toggle Day of Week for Anchor
   const toggleAnchorDay = (dayNum: number) => {
     setNewAnchorDays((prev) =>
       prev.includes(dayNum) ? prev.filter((d) => d !== dayNum) : [...prev, dayNum].sort()
     );
   };
 
-  // Add Dynamic Task
   const handleAddTask = (e: React.FormEvent) => {
     e.preventDefault();
     if (!newTaskTitle.trim()) return;
@@ -267,7 +255,6 @@ export const Sidebar: React.FC<SidebarProps> = ({
     });
   };
 
-  // Update Meal Config
   const handleMealChange = (
     mealKey: 'breakfast' | 'lunch' | 'snacks' | 'dinner',
     field: string,
@@ -285,7 +272,6 @@ export const Sidebar: React.FC<SidebarProps> = ({
     });
   };
 
-  // Update Sleep Config
   const handleSleepChange = (field: keyof EverymanSleepConfig, value: unknown) => {
     onUpdateData({
       ...data,
@@ -296,7 +282,6 @@ export const Sidebar: React.FC<SidebarProps> = ({
     });
   };
 
-  // Update Pomodoro Config
   const handlePomodoroChange = (field: keyof PomodoroConfig, value: unknown) => {
     onUpdateData({
       ...data,
@@ -307,7 +292,6 @@ export const Sidebar: React.FC<SidebarProps> = ({
     });
   };
 
-  // Add Weekly Chore to the pool (unscheduled until distributed)
   const handleAddChore = (e: React.FormEvent) => {
     e.preventDefault();
     if (!newChoreTitle.trim()) return;
@@ -340,7 +324,6 @@ export const Sidebar: React.FC<SidebarProps> = ({
     });
   };
 
-  // Reset all chores back to unscheduled so they can be redistributed
   const handleResetChoreSchedule = () => {
     onUpdateData({
       ...data,
@@ -354,14 +337,9 @@ export const Sidebar: React.FC<SidebarProps> = ({
     });
   };
 
-  // Distribute unscheduled chores across the current Mon-Sun week's lightest days.
-  // Only sets isScheduled/assignedDateStr/assignedStartTime/assignedEndTime on the
-  // chore itself — the scheduling engine renders the chore event fresh from that on
-  // every regeneration (Step 5 of generateOptimizedSchedule), so there's no need to
-  // separately persist synthetic events into scheduledEvents here.
   const handleDistributeChores = () => {
     const today = parseISO(getTodayStr());
-    const dayOfWeek = today.getDay(); // 0=Sun..6=Sat
+    const dayOfWeek = today.getDay();
     const diffToMonday = dayOfWeek === 0 ? 6 : dayOfWeek - 1;
     const monday = addDays(today, -diffToMonday);
     const weekDateStrs = Array.from({ length: 7 }, (_, i) => format(addDays(monday, i), 'yyyy-MM-dd'));
@@ -379,7 +357,6 @@ export const Sidebar: React.FC<SidebarProps> = ({
         isOpen ? 'w-full md:w-80 xl:w-80' : 'w-12'
       }`}
     >
-      {/* Sidebar Header & Toggle */}
       <div className="p-4 border-b border-stone-100 flex items-center justify-between bg-white">
         {isOpen && (
           <div className="flex items-center gap-2">
@@ -408,7 +385,6 @@ export const Sidebar: React.FC<SidebarProps> = ({
         </div>
       ) : (
         <div className="flex-1 overflow-y-auto flex flex-col">
-          {/* Subtabs Header */}
           <div className="grid grid-cols-5 bg-stone-100 p-1 border-b border-stone-200 text-[11px] font-medium">
             <button
               onClick={() => setActiveTab('anchors')}
@@ -468,7 +444,6 @@ export const Sidebar: React.FC<SidebarProps> = ({
           </div>
 
           <div className="p-5 space-y-6 flex-1 overflow-y-auto">
-            {/* TAB 1: FIXED LECTURES & ANCHORS */}
             {activeTab === 'anchors' && (
               <div className="space-y-4">
                 <div className="flex items-center justify-between">
@@ -477,14 +452,12 @@ export const Sidebar: React.FC<SidebarProps> = ({
                   </h3>
                 </div>
 
-                {/* Add Anchor Form */}
                 <form onSubmit={handleAddAnchor} className="bg-stone-50 p-3 rounded-md border border-stone-200 space-y-3">
                   <div>
                     <label className="text-[11px] font-semibold text-stone-700 block mb-1">
                       Academic / Professional Subject
                     </label>
 
-                    {/* IISc Subject Quick Chips */}
                     <div className="flex items-center gap-1.5 flex-wrap mb-2">
                       <span className="text-[10px] text-stone-400 font-bold uppercase">Subjects:</span>
                       {[
@@ -509,7 +482,6 @@ export const Sidebar: React.FC<SidebarProps> = ({
                       ))}
                     </div>
 
-                    {/* IISc Subject Select Dropdown */}
                     <select
                       value={newAnchorTitle}
                       onChange={(e) => setNewAnchorTitle(e.target.value)}
@@ -567,7 +539,6 @@ export const Sidebar: React.FC<SidebarProps> = ({
                     />
                   </div>
 
-                  {/* Day of Week Selector */}
                   <div>
                     <label className="text-[11px] font-semibold text-stone-600 block mb-1">
                       Days of the Week (Routine Schedule)
@@ -621,7 +592,6 @@ export const Sidebar: React.FC<SidebarProps> = ({
                   </button>
                 </form>
 
-                {/* List of Anchors */}
                 <div className="space-y-2">
                   {data.fixedAnchors.map((anchor) => (
                     <div
@@ -651,7 +621,6 @@ export const Sidebar: React.FC<SidebarProps> = ({
               </div>
             )}
 
-            {/* TAB 4: ONE-TIME DATE EVENTS */}
             {activeTab === 'onetime' && (() => {
               const allOtc = data.oneTimeCommitments || [];
               const activeOtc = allOtc.filter((o) => !o.isCompleted);
@@ -665,7 +634,6 @@ export const Sidebar: React.FC<SidebarProps> = ({
                     </h3>
                   </div>
 
-                  {/* Add One-Time Commitment Form */}
                   <form onSubmit={handleAddOneTime} className="bg-stone-50 p-3 rounded-md border border-stone-200 space-y-3">
                     <div>
                       <label className="text-[11px] font-semibold text-stone-700 block mb-1">
@@ -746,7 +714,6 @@ export const Sidebar: React.FC<SidebarProps> = ({
                     </button>
                   </form>
 
-                  {/* List of Active One-Time Commitments */}
                   <div className="space-y-2">
                     {activeOtc.length === 0 ? (
                       <p className="text-xs text-stone-400 text-center py-2 italic">
@@ -793,7 +760,6 @@ export const Sidebar: React.FC<SidebarProps> = ({
                     )}
                   </div>
 
-                  {/* Completed Events Section */}
                   {completedOtc.length > 0 && (
                     <div className="pt-3 border-t border-stone-200 space-y-2">
                       <div className="flex items-center justify-between">
@@ -847,7 +813,6 @@ export const Sidebar: React.FC<SidebarProps> = ({
               );
             })()}
 
-            {/* TAB 2: MEALS & MESS WINDOWS */}
             {activeTab === 'meals' && (
               <div className="space-y-4">
                 <div className="flex items-center justify-between">
@@ -918,7 +883,6 @@ export const Sidebar: React.FC<SidebarProps> = ({
               </div>
             )}
 
-            {/* TAB 3: DYNAMIC TASKS & ERRANDS */}
             {activeTab === 'tasks' && (
               <div className="space-y-4">
                 <div className="flex items-center justify-between">
@@ -930,7 +894,6 @@ export const Sidebar: React.FC<SidebarProps> = ({
                   </span>
                 </div>
 
-                {/* Add Task Form */}
                 <form onSubmit={handleAddTask} className="bg-stone-50 p-3 rounded-md border border-stone-200 space-y-3">
                   <div>
                     <label className="text-[11px] font-semibold text-stone-600 block mb-1">Errand / Task Title</label>
@@ -944,7 +907,6 @@ export const Sidebar: React.FC<SidebarProps> = ({
                     />
                   </div>
 
-                  {/* Transit Buffer Checkbox */}
                   <div className="bg-vela-50/80 p-2 rounded border border-vela-200 flex items-center justify-between">
                     <label className="flex items-center gap-2 cursor-pointer text-xs font-bold text-stone-800">
                       <input
@@ -1085,7 +1047,6 @@ export const Sidebar: React.FC<SidebarProps> = ({
                   </button>
                 </form>
 
-                {/* List of Dynamic Tasks */}
                 <div className="space-y-2">
                   {data.dynamicTasks.map((task) => (
                     <div
@@ -1145,10 +1106,8 @@ export const Sidebar: React.FC<SidebarProps> = ({
               </div>
             )}
 
-{/* TAB 4: SLEEP & POMODORO CONFIG */}
             {activeTab === 'settings' && (
               <div className="space-y-5">
-                {/* Cycle Summary Card */}
                 <section>
                   <h3 className="text-xs font-bold text-stone-500 uppercase tracking-wider mb-2">Cycle Architecture</h3>
                   <div className="bg-stone-900 text-white p-3.5 rounded-lg space-y-2 text-xs">
@@ -1171,7 +1130,6 @@ export const Sidebar: React.FC<SidebarProps> = ({
                   </div>
                 </section>
 
-                {/* 1. Core Sleep & Nap Settings */}
                 <div className="bg-stone-50 p-3.5 rounded-md border border-stone-200 space-y-3.5">
                   <div className="flex items-center justify-between">
                     <h4 className="text-xs font-bold uppercase tracking-wider text-stone-800 flex items-center gap-1.5">
@@ -1190,7 +1148,6 @@ export const Sidebar: React.FC<SidebarProps> = ({
 
                   {data.sleepConfig.enabled && (
                     <>
-                      {/* Core Sleep Config */}
                       <div className="space-y-2 border-b border-stone-200 pb-3">
                         <span className="text-[11px] font-bold text-stone-700 block uppercase tracking-wide">
                           Core Sleep Configuration
@@ -1224,7 +1181,6 @@ export const Sidebar: React.FC<SidebarProps> = ({
                           </div>
                         </div>
 
-                        {/* Decompression Wind-Down Slot */}
                         <div className="pt-1">
                           <label className="text-[10px] text-stone-500 font-semibold block mb-1">
                             Guilt-Free Wind-Down Decompression (Mins)
@@ -1248,7 +1204,6 @@ export const Sidebar: React.FC<SidebarProps> = ({
                           </span>
                         </div>
 
-                        {/* Core Duration Quick Presets */}
                         <div className="flex items-center gap-1.5 flex-wrap">
                           <span className="text-[10px] text-stone-400 font-semibold">Quick:</span>
                           {[
@@ -1273,7 +1228,6 @@ export const Sidebar: React.FC<SidebarProps> = ({
                         </div>
                       </div>
 
-                      {/* Nap Settings */}
                       <div className="space-y-2.5">
                         <span className="text-[11px] font-bold text-stone-700 block uppercase tracking-wide">
                           Power Nap Parameters
@@ -1330,7 +1284,6 @@ export const Sidebar: React.FC<SidebarProps> = ({
                           </div>
                         </div>
 
-                        {/* Preferred Nap Center Times */}
                         <div className="space-y-1.5 pt-1">
                           <label className="text-[10px] font-semibold text-stone-500 block">
                             Target Nap Center Times ({data.sleepConfig.napsCount} slots)
@@ -1358,7 +1311,6 @@ export const Sidebar: React.FC<SidebarProps> = ({
                   )}
                 </div>
 
-                {/* 2. Pomodoro & Focus Block Settings */}
                 <div className="bg-stone-50 p-3.5 rounded-md border border-stone-200 space-y-3.5">
                   <div className="flex items-center justify-between">
                     <h4 className="text-xs font-bold uppercase tracking-wider text-stone-800 flex items-center gap-1.5">
@@ -1395,7 +1347,6 @@ export const Sidebar: React.FC<SidebarProps> = ({
                   )}
                 </div>
 
-                {/* Weekly Chores Pool Card */}
                 <div className="bg-stone-50 border border-stone-200 p-4 rounded-lg space-y-3">
                   <div className="flex items-center justify-between">
                     <h4 className="text-xs font-bold uppercase tracking-wider text-stone-800 flex items-center gap-1.5">
@@ -1502,7 +1453,6 @@ export const Sidebar: React.FC<SidebarProps> = ({
                   </div>
                 </div>
 
-                {/* Adaptive Friction (Local Habit-Learning ML) Card */}
                 <div className="bg-stone-50 border border-stone-200 p-4 rounded-lg space-y-3">
                   <div className="flex items-center justify-between">
                     <h4 className="text-xs font-bold uppercase tracking-wider text-stone-800 flex items-center gap-1.5">
@@ -1580,7 +1530,6 @@ export const Sidebar: React.FC<SidebarProps> = ({
             )}
           </div>
 
-          {/* Sidebar Footer Action */}
           <div className="p-6 border-t border-stone-100 bg-white">
             <button
               onClick={onGenerateSchedule}

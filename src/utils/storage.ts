@@ -39,7 +39,7 @@ export const DEFAULT_MEAL_CONFIG: MealConfig = {
 export const DEFAULT_SLEEP_CONFIG: EverymanSleepConfig = {
   enabled: true,
   coreSleepStart: '01:00',
-  coreSleepDurationMinutes: 210, // 3.5 hrs = 210 mins (01:00 AM - 04:30 AM)
+  coreSleepDurationMinutes: 210,
   napsCount: 3,
   napDurationMinutes: 30,
   preferredNapTimes: ['08:30', '13:30', '18:30'],
@@ -94,9 +94,6 @@ export const DEFAULT_USER_DATA: UserScheduleData = {
   habitModel: DEFAULT_HABIT_MODEL,
 };
 
-/**
- * Loads user schedule data from localStorage, falling back to defaults if missing or corrupted
- */
 export function loadUserData(): UserScheduleData {
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
@@ -122,9 +119,6 @@ export function loadUserData(): UserScheduleData {
   }
 }
 
-/**
- * Saves user schedule data to browser localStorage
- */
 export function saveUserData(data: UserScheduleData): void {
   try {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
@@ -133,9 +127,6 @@ export function saveUserData(data: UserScheduleData): void {
   }
 }
 
-/**
- * Clears stored schedule data
- */
 export function clearUserData(): void {
   try {
     localStorage.removeItem(STORAGE_KEY);
@@ -144,9 +135,6 @@ export function clearUserData(): void {
   }
 }
 
-/**
- * Triggers browser download of user schedule configuration as JSON file
- */
 export function exportUserDataAsJSON(data: UserScheduleData): void {
   const jsonString = JSON.stringify(data, null, 2);
   const blob = new Blob([jsonString], { type: 'application/json' });

@@ -13,7 +13,6 @@ import {
   Lock,
   Trash2,
   Moon,
-  BookOpen,
   Utensils,
   Sparkles,
   Bus,
@@ -70,7 +69,6 @@ export const TimelineView: React.FC<TimelineViewProps> = ({
   const [currentTimeMinutes, setCurrentTimeMinutes] = useState<number | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
 
-  // Update real-time indicator line
   useEffect(() => {
     const updateTime = () => {
       const now = new Date();
@@ -83,25 +81,22 @@ export const TimelineView: React.FC<TimelineViewProps> = ({
       }
     };
     updateTime();
-    const timer = setInterval(updateTime, 30000); // refresh every 30s
+    const timer = setInterval(updateTime, 30000);
     return () => clearInterval(timer);
   }, [currentDateStr]);
 
   const hours = Array.from({ length: 24 }, (_, i) => i);
 
-  // Handle slot click for quick creation
   const handleTimelineClick = (e: React.MouseEvent<HTMLDivElement>) => {
     if (!containerRef.current) return;
     const rect = containerRef.current.getBoundingClientRect();
     const offsetY = e.clientY - rect.top;
     const clickRatio = Math.max(0, Math.min(offsetY / rect.height, 1));
     const clickMinutes = Math.floor(clickRatio * 1440);
-    // Snap to 15m interval
     const snappedMins = Math.floor(clickMinutes / 15) * 15;
     onCreateSlotClick(minutesToTime(snappedMins));
   };
 
-  // Toggle complete state
   const handleToggleComplete = (e: React.MouseEvent, event: ScheduledEvent) => {
     e.stopPropagation();
     onEventUpdate({
@@ -113,7 +108,6 @@ export const TimelineView: React.FC<TimelineViewProps> = ({
 
   return (
     <div className="flex-1 overflow-y-auto p-4 md:p-6 space-y-6 bg-stone-50 text-stone-900">
-      {/* Draft Schedule Notice Banner */}
       {isDraftSchedule && (
         <div className="bg-amber-500 text-stone-950 px-4 py-2.5 rounded-lg shadow-md flex items-center justify-between gap-3 shrink-0 border border-amber-600">
           <div className="flex items-center gap-2">
@@ -140,7 +134,6 @@ export const TimelineView: React.FC<TimelineViewProps> = ({
           </div>
         </div>
       )}
-      {/* Metrics Bar */}
       <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
         <div className="bg-white border border-stone-200 p-4 rounded-xl shadow-xs hover:shadow-sm hover:border-stone-300 transition-all">
           <div className="text-[10px] font-bold text-stone-500 uppercase tracking-wider flex items-center gap-1 mb-1">
@@ -225,7 +218,6 @@ export const TimelineView: React.FC<TimelineViewProps> = ({
         </div>
       </div>
 
-      {/* Unscheduled Warnings Banner */}
       {unscheduledItems.length > 0 && (
         <div className="bg-amber-50 border border-amber-200 rounded-md p-4 flex flex-col md:flex-row items-start md:items-center justify-between gap-3 shadow-xs">
           <div className="flex items-start gap-3">
@@ -249,7 +241,6 @@ export const TimelineView: React.FC<TimelineViewProps> = ({
         </div>
       )}
 
-      {/* Interactive 24-Hour Timeline Canvas */}
       <div className="bg-white border border-stone-200 rounded-xl p-4 md:p-6 shadow-xs relative">
         <div className="flex items-center justify-between mb-4 pb-3 border-b border-stone-100">
           <div className="flex items-center gap-2">
@@ -263,9 +254,7 @@ export const TimelineView: React.FC<TimelineViewProps> = ({
           </span>
         </div>
 
-        {/* Timeline Grid Container */}
         <div className="relative flex min-h-[2880px]" ref={containerRef} onClick={handleTimelineClick}>
-          {/* Hour Ruler (Left column) */}
           <div className="w-16 md:w-20 shrink-0 border-r border-stone-200 select-none">
             {hours.map((hour) => (
               <div
@@ -277,9 +266,7 @@ export const TimelineView: React.FC<TimelineViewProps> = ({
             ))}
           </div>
 
-          {/* Events Area (Right column) */}
           <div className="flex-1 relative bg-stone-50/50 cursor-crosshair">
-            {/* Horizontal Grid lines */}
             {hours.map((hour) => (
               <div
                 key={hour}
@@ -287,7 +274,6 @@ export const TimelineView: React.FC<TimelineViewProps> = ({
               />
             ))}
 
-            {/* Current Real-Time Red Indicator Line */}
             {currentTimeMinutes !== null && (
               <div
                 className="absolute left-0 right-0 z-20 border-t-2 border-red-500 flex items-center pointer-events-none transition-all duration-500"
@@ -300,10 +286,7 @@ export const TimelineView: React.FC<TimelineViewProps> = ({
               </div>
             )}
 
-            {/* Render Scheduled Events with Side-By-Side Overlap Column Positioning */}
             {(() => {
-              // Group and calculate side-by-side column positions for overlapping events
-              // MIN_VISUAL_MINUTES ensures that cards forced to min-height (44px = 22 mins) trigger column splits if overlapping
               const MIN_VISUAL_MINUTES = 22;
               const getEffectiveEndMinutes = (ev: ScheduledEvent) => {
                 return Math.max(ev.endMinutes, ev.startMinutes + MIN_VISUAL_MINUTES);
@@ -380,8 +363,6 @@ export const TimelineView: React.FC<TimelineViewProps> = ({
               }
 
               return positionedEvents.map(({ event, topPercent, heightPercent, colIndex, totalCols }) => {
-                // Actual duration for display text; layout sizing separately floors
-                // to 15m so very short events stay visible (see durationMins below).
                 const actualDurationMins = event.endMinutes - event.startMinutes;
                 const durationMins = Math.max(15, actualDurationMins);
                 const styles = getCategoryStyles(event.category, event.title);
@@ -412,7 +393,6 @@ export const TimelineView: React.FC<TimelineViewProps> = ({
                     } hover:z-30 hover:shadow-md`}
                   >
                     {isShort ? (
-                      /* Refined Compact Layout for Short Duration Cards (< 40m) */
                       <div className="flex flex-col justify-center gap-0.5 h-full overflow-hidden text-xs">
                         <div className="flex items-center justify-between gap-1 min-w-0">
                           <div className="flex items-center gap-1 min-w-0 flex-1">
@@ -430,7 +410,6 @@ export const TimelineView: React.FC<TimelineViewProps> = ({
                             </h5>
                           </div>
 
-                          {/* Quick Action Buttons */}
                           <div className="flex items-center gap-0.5 shrink-0">
                             {!event.isLocked && onTogglePinEvent && (
                               <button
@@ -472,7 +451,6 @@ export const TimelineView: React.FC<TimelineViewProps> = ({
                           </div>
                         </div>
 
-                        {/* Full Time Range clearly displayed on 2nd line */}
                         <div className="flex items-center gap-1 text-[10px] font-semibold text-stone-700 min-w-0">
                           <Clock className="w-2.5 h-2.5 text-stone-500 shrink-0" />
                           <span className="truncate">
@@ -481,7 +459,6 @@ export const TimelineView: React.FC<TimelineViewProps> = ({
                         </div>
                       </div>
                     ) : (
-                      /* Standard Vertical Layout for Taller Cards (>= 40m) */
                       <div className="flex flex-col justify-between gap-1.5 h-full overflow-hidden">
                         <div className="space-y-1 min-w-0">
                           <div className="flex items-center justify-between gap-2">
@@ -511,7 +488,6 @@ export const TimelineView: React.FC<TimelineViewProps> = ({
                               )}
                             </div>
 
-                            {/* Quick Action Buttons on hover */}
                             <div className="flex items-center gap-1 shrink-0">
                               {!event.isLocked && onTogglePinEvent && (
                                 <button

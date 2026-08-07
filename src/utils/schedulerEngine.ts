@@ -20,45 +20,27 @@ import {
 import { getEffectiveTaskDuration } from './habitML';
 
 interface FreeInterval {
-  start: number; // minutes from midnight (0..1440)
+  start: number;
   end: number;
 }
 
 const SLACK_BUFFER_MINUTES = 10;
 
-/**
- * Deterministic, modular scheduling engine that generates a 24-hour timeline.
- * 
- * Pipeline Stages:
- * 1. Spilling Overlap from Yesterday (Core sleep/anchors crossing midnight)
- * 2. Immutable Done & Pinned User Events
- * 3. Guilt-Free Decompression Wind-down
- * 4. Fixed Academic Anchors & One-Time Date Commitments
- * 5. Everyman Core Sleep (Current Day)
- * 6. Meal Windows (Breakfast, Lunch, Snacks, Dinner)
- * 7. Everyman Power Naps
- * 8. Dynamic Tasks, Errands & Assigned Chores (Best-fit with cascade buffer)
- * 9. Elastic Pomodoro Study & Mandatory Break Auto-fill
- * 10. Metrics & Utilization Summary
- */
 export function generateOptimizedSchedule(
   data: UserScheduleData,
   dateStr: string,
-  targetDayOfWeek: number // 0 = Sun, 1 = Mon, ..., 6 = Sat
+  targetDayOfWeek: number
 ): ScheduleGenerationResult {
   const events: ScheduledEvent[] = [];
   const unscheduledItems: UnscheduledItem[] = [];
 
-  // Time awareness calculations
   const todayStr = getTodayStr();
   const isToday = dateStr === todayStr;
   const now = new Date();
   const currentMins = isToday ? now.getHours() * 60 + now.getMinutes() : 0;
 
-  // Track occupied minute intervals (0 to 1440)
   const occupiedIntervals: Array<{ start: number; end: number; id: string; category: EventCategory }> = [];
 
-  // Process exclusion slots recorded for this date
   const excludedKeys = new Set((data.excludedSlots && data.excludedSlots[dateStr]) || []);
   for (const key of excludedKeys) {
     if (key.startsWith('pomo:')) {
@@ -71,7 +53,6 @@ export function generateOptimizedSchedule(
     }
   }
 
-  // Helper: Check if a slot [start, end] is completely free
   const isSlotFree = (start: number, end: number): boolean => {
     if (start < 0 || end > 1440 || start >= end) return false;
     for (const occ of occupiedIntervals) {
@@ -82,14 +63,13 @@ export function generateOptimizedSchedule(
     return true;
   };
 
-  // Helper: Add event to internal state and occupied interval tracker
   const addEventToTimeline = (
     event: Omit<ScheduledEvent, 'dateStr' | 'startMinutes' | 'endMinutes'>
   ): ScheduledEvent => {
     const sMins = timeToMinutes(event.startTime);
     let eMins = timeToMinutes(event.endTime);
     if (event.endTime === '24:00') eMins = 1440;
-    if (eMins <= sMins) eMins = sMins + 30; // fallback safety
+    if (eMins <= sMins) eMins = sMins + 30;
 
     const isPast = isToday && eMins <= currentMins;
 
@@ -106,7 +86,6 @@ export function generateOptimizedSchedule(
     return fullEvent;
   };
 
-  // Helper: Schedule an event that wraps past midnight on the same day canvas
   const scheduleWrappableEvent = (
     idBase: string,
     startTime: string,
@@ -134,7 +113,6 @@ export function generateOptimizedSchedule(
     return true;
   };
 
-  // Helper: Schedule leading segment of an overnight anchor
   const scheduleLeadingSegment = (
     idBase: string,
     startTime: string,
@@ -150,7 +128,6 @@ export function generateOptimizedSchedule(
     return true;
   };
 
-  // Helper: Schedule trailing segment of an overnight anchor
   const scheduleTrailingSegment = (
     idBase: string,
     endTime: string,
@@ -163,7 +140,6 @@ export function generateOptimizedSchedule(
     return true;
   };
 
-  // Helper: Detect if a scheduled event's source parent has been deleted
   const isOrphanedEvent = (ev: ScheduledEvent): boolean => {
     if (ev.parentAnchorId && !data.fixedAnchors.some((a) => a.id === ev.parentAnchorId)) return true;
     if (ev.parentOneTimeId && !(data.oneTimeCommitments || []).some((o) => o.id === ev.parentOneTimeId)) return true;
@@ -177,7 +153,6 @@ export function generateOptimizedSchedule(
     return false;
   };
 
-  // Helper: Get free intervals sorted by start time
   const getSortedFreeIntervals = (minStartMins = 0): FreeInterval[] => {
     const sortedOcc = [...occupiedIntervals].sort((a, b) => a.start - b.start);
     const freeList: FreeInterval[] = [];
@@ -197,14 +172,9 @@ export function generateOptimizedSchedule(
     return freeList;
   };
 
-  // -------------------------------------------------------------
-  // STAGE 0: YESTERDAY'S OVERNIGHT SPILLOVER (Midnight Wraparound)
-  // If yesterday had core sleep (e.g. 23:00 - 02:30), mark 00:00 - 02:30 today
-  // -------------------------------------------------------------
   const previousDateStr = getPreviousDateStr(dateStr);
   const previousDayOfWeek = getPreviousDayOfWeek(targetDayOfWeek);
 
-  // Yesterday's Core Sleep Spillover
   if (data.sleepConfig.enabled) {
     const prevExcluded = new Set((data.excludedSlots && data.excludedSlots[previousDateStr]) || []);
     if (!prevExcluded.has('core_sleep')) {
@@ -229,7 +199,6 @@ export function generateOptimizedSchedule(
     }
   }
 
-  // Yesterday's Overnight Anchor Spillover
   for (const anchor of data.fixedAnchors) {
     const sMins = timeToMinutes(anchor.startTime);
     const rawEnd = timeToMinutes(anchor.endTime);
@@ -254,12 +223,8 @@ export function generateOptimizedSchedule(
     }
   }
 
-  // -------------------------------------------------------------
-  // STAGE 1: IMMUTABLE DONE, PINNED & PAST USER EVENTS
-  // -------------------------------------------------------------
   const existingDateEvents = data.scheduledEvents[dateStr] || [];
 
-  // 1A. Completed / Done Events
   const doneEvents = existingDateEvents.filter(
     (ev) => (ev.isCompleted || ev.status === 'done') && !isOrphanedEvent(ev)
   );
@@ -276,7 +241,6 @@ export function generateOptimizedSchedule(
     }
   }
 
-  // 1B. Pinned Events & Custom Manual Events
   const pinnedEvents = existingDateEvents.filter(
     (ev) =>
       !ev.isCompleted &&
@@ -298,7 +262,6 @@ export function generateOptimizedSchedule(
     }
   }
 
-  // 1C. Existing Past / In-Progress Events for Today
   const pastEvents = existingDateEvents.filter(
     (ev) =>
       !ev.isCompleted &&
@@ -320,7 +283,6 @@ export function generateOptimizedSchedule(
     }
   }
 
-  // 1C. Tasks pinned directly in dynamicTasks array for this date
   for (const task of data.dynamicTasks) {
     if (task.isPinned && task.pinnedDateStr === dateStr && task.pinnedStartTime) {
       const sMins = timeToMinutes(task.pinnedStartTime);
@@ -348,9 +310,6 @@ export function generateOptimizedSchedule(
     }
   }
 
-  // -------------------------------------------------------------
-  // STAGE 2: SLEEP OVERRIDE BLOCKS & RECURRING ANCHORS
-  // -------------------------------------------------------------
   const applicableAnchors = data.fixedAnchors.filter((anchor) => {
     if (anchor.deletedDates && anchor.deletedDates.includes(dateStr)) return false;
     if (!anchor.daysOfWeek || anchor.daysOfWeek.length === 0) return true;
@@ -361,7 +320,6 @@ export function generateOptimizedSchedule(
     (otc) => otc.dateStr === dateStr
   );
 
-  // Sleep Override Tracking
   const sleepOverrideBlocks: Array<{ start: number; end: number; title: string }> = [];
   const pushSleepOverrideBlock = (startTime: string, endTime: string, title: string) => {
     const sMins = timeToMinutes(startTime);
@@ -394,9 +352,6 @@ export function generateOptimizedSchedule(
     return false;
   };
 
-  // -------------------------------------------------------------
-  // STAGE 3: GUILT-FREE WIND-DOWN (DECOMPRESSION)
-  // -------------------------------------------------------------
   if (data.sleepConfig.enabled && !excludedKeys.has('decompression')) {
     const hasDecompression = events.some((e) => e.category === 'decompression' || e.id.startsWith('decompression-'));
     if (!hasDecompression) {
@@ -451,9 +406,6 @@ export function generateOptimizedSchedule(
     }
   }
 
-  // -------------------------------------------------------------
-  // STAGE 4: FIXED ACADEMIC ANCHORS & ONE-TIME COMMITMENTS
-  // -------------------------------------------------------------
   for (const anchor of applicableAnchors) {
     const idBase = `anchor-${anchor.id}-${dateStr}`;
     if (events.some((e) => e.id === idBase || e.id === `${idBase}-p1`)) continue;
@@ -522,9 +474,6 @@ export function generateOptimizedSchedule(
     }
   }
 
-  // -------------------------------------------------------------
-  // STAGE 5: EVERYMAN CORE SLEEP (Current Day)
-  // -------------------------------------------------------------
   if (data.sleepConfig.enabled && !excludedKeys.has('core_sleep')) {
     const hasCoreSleep = events.some((e) => e.category === 'core_sleep' || e.id.startsWith('core-sleep-'));
     if (!hasCoreSleep) {
@@ -582,9 +531,6 @@ export function generateOptimizedSchedule(
     }
   }
 
-  // -------------------------------------------------------------
-  // STAGE 6: MEAL WINDOWS
-  // -------------------------------------------------------------
   const scheduleMeal = (mealKey: 'breakfast' | 'lunch' | 'snacks' | 'dinner', meal: MealWindow) => {
     if (!meal || !meal.enabled) return;
     if (excludedKeys.has(`meal-${mealKey}`)) return;
@@ -637,9 +583,6 @@ export function generateOptimizedSchedule(
     if (data.mealConfig.dinner) scheduleMeal('dinner', data.mealConfig.dinner);
   }
 
-  // -------------------------------------------------------------
-  // STAGE 7: EVERYMAN NAPS
-  // -------------------------------------------------------------
   if (data.sleepConfig.enabled && data.sleepConfig.napsCount > 0) {
     const napsCount = data.sleepConfig.napsCount;
     const napDur = Math.max(10, data.sleepConfig.napDurationMinutes || 30);
@@ -726,9 +669,6 @@ export function generateOptimizedSchedule(
     }
   }
 
-  // -------------------------------------------------------------
-  // STAGE 8: DYNAMIC TASKS, ERRANDS & ASSIGNED CHORES
-  // -------------------------------------------------------------
   const alreadyPlacedTaskIds = new Set(
     events.filter((e) => e.parentTaskId).map((e) => e.parentTaskId)
   );
@@ -773,8 +713,8 @@ export function generateOptimizedSchedule(
     const totalRequired = transitBefore + taskDur + transitAfter;
 
     const isErrand = isErrandTask(task);
-    const errandMin = 600;  // 10:00 AM
-    const errandMax = 1200; // 08:00 PM
+    const errandMin = 600;
+    const errandMax = 1200;
 
     let searchMinMins = isToday ? currentMins : 0;
     let searchMaxMins = 1440;
@@ -905,7 +845,6 @@ export function generateOptimizedSchedule(
     }
   }
 
-  // Schedule Chores assigned to this date
   const assignedChoresForDate = (data.weeklyChores || []).filter(
     (c) => c.isScheduled && c.assignedDateStr === dateStr
   );
@@ -933,9 +872,6 @@ export function generateOptimizedSchedule(
     }
   }
 
-  // -------------------------------------------------------------
-  // STAGE 9: ELASTIC POMODORO STUDY SESSIONS WITH MANDATORY BREAKS
-  // -------------------------------------------------------------
   if (data.pomodoroConfig.autoFillRemainingSlots) {
     let pomodoroIndex = 1;
     const freeIntervals = getSortedFreeIntervals(isToday ? currentMins : 0);
@@ -944,8 +880,6 @@ export function generateOptimizedSchedule(
       let cursor = interval.start;
       let remainingInterval = interval.end - cursor;
 
-      // A valid Pomodoro cycle requires at least 35 minutes total (e.g. min 25m study + 10m mandatory break).
-      // Smaller remaining slots (like a 30m gap between a Nap and a Meal) are reserved as buffer/rest time.
       while (remainingInterval >= 35) {
         let studyMins = 50;
         let breakMins = 15;
@@ -1043,9 +977,6 @@ export function generateOptimizedSchedule(
     }
   }
 
-  // -------------------------------------------------------------
-  // STAGE 10: SORTING & METRICS SUMMARY
-  // -------------------------------------------------------------
   events.sort((a, b) => a.startMinutes - b.startMinutes);
 
   let totalSleepMinutes = 0;
@@ -1088,10 +1019,6 @@ export function generateOptimizedSchedule(
   };
 }
 
-/**
- * Scans a 7-day week matrix and automatically slots Weekly Chores into the largest
- * available blocks of Free Time on days with the lowest total scheduled workload.
- */
 export function scheduleWeeklyChores(
   data: UserScheduleData,
   weekDateStrs: string[]
@@ -1115,7 +1042,7 @@ export function scheduleWeeklyChores(
     occs.sort((a, b) => a.start - b.start);
 
     const freeInts: FreeInterval[] = [];
-    let ptr = 420; // 07:00 AM start
+    let ptr = 420;
     for (const o of occs) {
       if (o.end <= ptr) continue;
       if (o.start > ptr) {
