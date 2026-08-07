@@ -255,7 +255,7 @@ export function generateOptimizedSchedule(
   }
 
   // -------------------------------------------------------------
-  // STAGE 1: IMMUTABLE DONE & PINNED USER EVENTS
+  // STAGE 1: IMMUTABLE DONE, PINNED & PAST USER EVENTS
   // -------------------------------------------------------------
   const existingDateEvents = data.scheduledEvents[dateStr] || [];
 
@@ -294,6 +294,28 @@ export function generateOptimizedSchedule(
         ...pinned,
         isPinned: pinned.isPinned ?? false,
         isLocked: true,
+      });
+    }
+  }
+
+  // 1C. Existing Past / In-Progress Events for Today
+  const pastEvents = existingDateEvents.filter(
+    (ev) =>
+      !ev.isCompleted &&
+      ev.status !== 'done' &&
+      !isOrphanedEvent(ev) &&
+      !doneEvents.some((d) => d.id === ev.id) &&
+      !pinnedEvents.some((p) => p.id === ev.id) &&
+      isToday &&
+      (ev.endMinutes <= currentMins || ev.startMinutes < currentMins)
+  );
+
+  for (const pastEv of pastEvents) {
+    if (isSlotFree(pastEv.startMinutes, pastEv.endMinutes)) {
+      addEventToTimeline({
+        ...pastEv,
+        isLocked: true,
+        isPast: pastEv.endMinutes <= currentMins,
       });
     }
   }
@@ -384,44 +406,46 @@ export function generateOptimizedSchedule(
       const decompStartMins = coreStartMins - decompMins;
       const decompEndMins = coreStartMins;
 
-      if (decompStartMins < 0) {
-        const part1Start = 1440 + decompStartMins;
-        if (isSlotFree(part1Start, 1440)) {
-          addEventToTimeline({
-            id: `decompression-p1-${dateStr}`,
-            title: 'Guilt-Free Wind-Down (Decompression)',
-            category: 'decompression',
-            startTime: minutesToTime(part1Start),
-            endTime: '24:00',
-            color: '#ec4899',
-            isLocked: true,
-            notes: `${decompMins}-min reserved downtime before core sleep`,
-          });
-        }
-        if (decompEndMins > 0 && isSlotFree(0, decompEndMins)) {
-          addEventToTimeline({
-            id: `decompression-p2-${dateStr}`,
-            title: 'Guilt-Free Wind-Down (Decompression)',
-            category: 'decompression',
-            startTime: '00:00',
-            endTime: minutesToTime(decompEndMins),
-            color: '#ec4899',
-            isLocked: true,
-            notes: `${decompMins}-min reserved downtime before core sleep`,
-          });
-        }
-      } else {
-        if (isSlotFree(decompStartMins, decompEndMins)) {
-          addEventToTimeline({
-            id: `decompression-${dateStr}`,
-            title: 'Guilt-Free Wind-Down (Decompression)',
-            category: 'decompression',
-            startTime: minutesToTime(decompStartMins),
-            endTime: minutesToTime(decompEndMins),
-            color: '#ec4899',
-            isLocked: true,
-            notes: `${decompMins}-min reserved downtime prior to core sleep`,
-          });
+      if (!isToday || decompEndMins > currentMins) {
+        if (decompStartMins < 0) {
+          const part1Start = 1440 + decompStartMins;
+          if (isSlotFree(part1Start, 1440)) {
+            addEventToTimeline({
+              id: `decompression-p1-${dateStr}`,
+              title: 'Guilt-Free Wind-Down (Decompression)',
+              category: 'decompression',
+              startTime: minutesToTime(part1Start),
+              endTime: '24:00',
+              color: '#ec4899',
+              isLocked: true,
+              notes: `${decompMins}-min reserved downtime before core sleep`,
+            });
+          }
+          if (decompEndMins > 0 && isSlotFree(0, decompEndMins)) {
+            addEventToTimeline({
+              id: `decompression-p2-${dateStr}`,
+              title: 'Guilt-Free Wind-Down (Decompression)',
+              category: 'decompression',
+              startTime: '00:00',
+              endTime: minutesToTime(decompEndMins),
+              color: '#ec4899',
+              isLocked: true,
+              notes: `${decompMins}-min reserved downtime before core sleep`,
+            });
+          }
+        } else {
+          if (isSlotFree(decompStartMins, decompEndMins)) {
+            addEventToTimeline({
+              id: `decompression-${dateStr}`,
+              title: 'Guilt-Free Wind-Down (Decompression)',
+              category: 'decompression',
+              startTime: minutesToTime(decompStartMins),
+              endTime: minutesToTime(decompEndMins),
+              color: '#ec4899',
+              isLocked: true,
+              notes: `${decompMins}-min reserved downtime prior to core sleep`,
+            });
+          }
         }
       }
     }
@@ -511,7 +535,7 @@ export function generateOptimizedSchedule(
 
       const sleepOverridden = isOverriddenByLongTravel(coreStartMins, Math.min(1440, coreEndMins));
 
-      if (!sleepOverridden) {
+      if (!sleepOverridden && (!isToday || coreEndMins > currentMins)) {
         if (coreEndMins <= 1440) {
           if (isSlotFree(coreStartMins, coreEndMins)) {
             addEventToTimeline({
@@ -573,7 +597,11 @@ export function generateOptimizedSchedule(
     const windowEndMins = timeToMinutes(meal.windowEnd);
     const dur = meal.durationMinutes || 60;
 
-    const scanStart = windowStartMins;
+    if (isToday && windowEndMins <= currentMins) {
+      return;
+    }
+
+    const scanStart = isToday ? Math.max(windowStartMins, currentMins) : windowStartMins;
 
     let scheduled = false;
     for (let t = scanStart; t <= windowEndMins - dur; t += 15) {
@@ -593,7 +621,7 @@ export function generateOptimizedSchedule(
       }
     }
 
-    if (!scheduled) {
+    if (!scheduled && (!isToday || windowEndMins > currentMins)) {
       unscheduledItems.push({
         type: 'meal',
         title: meal.name,
@@ -633,11 +661,14 @@ export function generateOptimizedSchedule(
       const preferredTimeStr = preferredTimes[i];
       const targetMins = timeToMinutes(preferredTimeStr);
 
+      if (isToday && targetMins + napDur <= currentMins) continue;
+
       if (isOverriddenByLongTravel(targetMins, targetMins + napDur)) continue;
 
       let placed = false;
+      const minAllowed = isToday ? currentMins : 0;
 
-      if (isSlotFree(targetMins, targetMins + napDur)) {
+      if (targetMins >= minAllowed && isSlotFree(targetMins, targetMins + napDur)) {
         addEventToTimeline({
           id: `nap-${i + 1}-${dateStr}`,
           title: `Everyman Nap #${i + 1} (${napDur}m REM Refresh)`,
@@ -652,7 +683,7 @@ export function generateOptimizedSchedule(
       } else {
         for (let offset = 15; offset <= 300; offset += 15) {
           const tryStart1 = targetMins + offset;
-          if (tryStart1 >= 0 && tryStart1 + napDur <= 1440 && isSlotFree(tryStart1, tryStart1 + napDur)) {
+          if (tryStart1 >= minAllowed && tryStart1 + napDur <= 1440 && isSlotFree(tryStart1, tryStart1 + napDur)) {
             addEventToTimeline({
               id: `nap-${i + 1}-${dateStr}`,
               title: `Everyman Nap #${i + 1} (${napDur}m REM Refresh)`,
@@ -668,7 +699,7 @@ export function generateOptimizedSchedule(
           }
 
           const tryStart2 = targetMins - offset;
-          if (tryStart2 >= 0 && tryStart2 + napDur <= 1440 && isSlotFree(tryStart2, tryStart2 + napDur)) {
+          if (tryStart2 >= minAllowed && tryStart2 + napDur <= 1440 && isSlotFree(tryStart2, tryStart2 + napDur)) {
             addEventToTimeline({
               id: `nap-${i + 1}-${dateStr}`,
               title: `Everyman Nap #${i + 1} (${napDur}m REM Refresh)`,
@@ -685,7 +716,7 @@ export function generateOptimizedSchedule(
         }
       }
 
-      if (!placed) {
+      if (!placed && (!isToday || targetMins > currentMins)) {
         unscheduledItems.push({
           type: 'nap',
           title: `Everyman Nap #${i + 1}`,
@@ -745,11 +776,11 @@ export function generateOptimizedSchedule(
     const errandMin = 600;  // 10:00 AM
     const errandMax = 1200; // 08:00 PM
 
-    let searchMinMins = 0;
+    let searchMinMins = isToday ? currentMins : 0;
     let searchMaxMins = 1440;
 
     if (isErrand) {
-      searchMinMins = errandMin;
+      searchMinMins = Math.max(errandMin, isToday ? currentMins : 0);
       searchMaxMins = errandMax;
     }
 
@@ -856,8 +887,8 @@ export function generateOptimizedSchedule(
 
     if (!scheduled) {
       let reasonMsg: string;
-      if (deadlineMins !== null && deadlineMins <= 0) {
-        reasonMsg = `Deadline (${task.deadline}) has already passed.`;
+      if (deadlineMins !== null && isToday && deadlineMins <= currentMins) {
+        reasonMsg = `Deadline (${task.deadline}) has already passed today.`;
       } else if (deadlineMins !== null) {
         reasonMsg = `Requires a ${totalRequired}m contiguous block before its ${task.deadline} deadline, but none was found.`;
       } else if (isErrand) {
@@ -907,7 +938,7 @@ export function generateOptimizedSchedule(
   // -------------------------------------------------------------
   if (data.pomodoroConfig.autoFillRemainingSlots) {
     let pomodoroIndex = 1;
-    const freeIntervals = getSortedFreeIntervals(0);
+    const freeIntervals = getSortedFreeIntervals(isToday ? currentMins : 0);
 
     for (const interval of freeIntervals) {
       let cursor = interval.start;
